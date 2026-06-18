@@ -12,8 +12,8 @@ struct VariableInsertMenu: View {
             Button("{ext}") { onInsert("{ext}") }
             Button("{parent}") { onInsert("{parent}") }
             Button("{counter:001}") { onInsert("{counter:001}") }
-            Button("{date}") { onInsert("{date}") }
-            Button("{time}") { onInsert("{time}") }
+            Button("{date:yyyy-MM-dd}") { onInsert("{date:yyyy-MM-dd}") }
+            Button("{time:HH-mm-ss}") { onInsert("{time:HH-mm-ss}") }
             if includeGroups {
                 Divider()
                 Button("$1 (grupa 1)") { onInsert("$1") }

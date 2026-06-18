@@ -287,14 +287,7 @@ final class RenameSession: ObservableObject {
             return
         }
 
-        let config = RenameConfig(
-            template: template,
-            find: FindReplace(search: search, replacement: replacement, isRegex: isRegex, caseSensitive: caseSensitive),
-            nameCase: nameCase,
-            extCase: extCase,
-            stripDiacritics: stripDiacritics,
-            lockExtension: lockExtension
-        )
+        let config = currentConfig
         let sorted = sortedItems(items)
         rows = sortedRows(engine.plan(items: sorted, config: config))
         updateStatusMessage()
