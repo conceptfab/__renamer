@@ -34,12 +34,20 @@ struct ControlsPanel: View {
             }
 
             HStack(spacing: 16) {
-                Toggle("Wyrażenie regularne", isOn: $session.isRegex)
-                    .onChange(of: session.isRegex) { _ in session.onConfigChanged() }
+                Picker("Tryb", selection: $session.isRegex) {
+                    Text("Zwykły tekst").tag(false)
+                    Text("Regex").tag(true)
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .fixedSize()
+                .onChange(of: session.isRegex) { _ in session.onConfigChanged() }
                 Toggle("Rozróżniaj wielkość", isOn: $session.caseSensitive)
                     .onChange(of: session.caseSensitive) { _ in session.onConfigChanged() }
                 Toggle("Usuń diakrytyki", isOn: $session.stripDiacritics)
                     .onChange(of: session.stripDiacritics) { _ in session.onConfigChanged() }
+                Toggle("Chroń rozszerzenie pliku", isOn: $session.lockExtension)
+                    .onChange(of: session.lockExtension) { _ in session.onConfigChanged() }
             }
 
             HStack(spacing: 12) {
@@ -55,7 +63,7 @@ struct ControlsPanel: View {
                 .onChange(of: session.nameCase) { _ in session.onConfigChanged() }
 
                 Text("Rozszerzenie")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(session.lockExtension ? .tertiary : .secondary)
                 Picker("Rozszerzenie", selection: $session.extCase) {
                     ForEach(CaseMode.allCases, id: \.self) { mode in
                         Text(mode.label).tag(mode)
@@ -63,6 +71,7 @@ struct ControlsPanel: View {
                 }
                 .labelsHidden()
                 .frame(width: 160)
+                .disabled(session.lockExtension)
                 .onChange(of: session.extCase) { _ in session.onConfigChanged() }
             }
         }
