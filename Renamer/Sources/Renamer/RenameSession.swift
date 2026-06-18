@@ -121,6 +121,16 @@ final class RenameSession: ObservableObject {
         onConfigChanged()
     }
 
+    func insertReplacementToken(_ token: String) {
+        replacement += token
+        onConfigChanged()
+    }
+
+    func insertSearchToken(_ token: String) {
+        search += token
+        onConfigChanged()
+    }
+
     func requestApply() {
         guard canApply else { return }
         if warningCount > 0 {

@@ -14,23 +14,35 @@ struct ControlsPanel: View {
                     .textFieldStyle(.roundedBorder)
                     .font(.system(.body, design: .monospaced))
                     .onChange(of: session.template) { _ in session.onConfigChanged() }
-                TokenInsertMenu()
+                VariableInsertMenu { session.insertToken($0) }
             }
 
-            HStack(alignment: .firstTextBaseline) {
-                Text("Szukaj")
-                    .frame(width: 90, alignment: .trailing)
-                    .foregroundStyle(.secondary)
-                TextField("", text: $session.search)
-                    .textFieldStyle(.roundedBorder)
-                    .font(.system(.body, design: .monospaced))
-                    .onChange(of: session.search) { _ in session.onConfigChanged() }
-                Text("Zamień")
-                    .foregroundStyle(.secondary)
-                TextField("", text: $session.replacement)
-                    .textFieldStyle(.roundedBorder)
-                    .font(.system(.body, design: .monospaced))
-                    .onChange(of: session.replacement) { _ in session.onConfigChanged() }
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Szukaj")
+                        .frame(width: 90, alignment: .trailing)
+                        .foregroundStyle(.secondary)
+                    TextField("", text: $session.search)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.system(.body, design: .monospaced))
+                        .onChange(of: session.search) { _ in session.onConfigChanged() }
+                    if session.isRegex {
+                        RegexHelperMenu { session.insertSearchToken($0) }
+                    }
+                    Text("Zamień")
+                        .foregroundStyle(.secondary)
+                    TextField("", text: $session.replacement)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.system(.body, design: .monospaced))
+                        .onChange(of: session.replacement) { _ in session.onConfigChanged() }
+                    VariableInsertMenu(includeGroups: session.isRegex) { session.insertReplacementToken($0) }
+                }
+                if session.isRegex {
+                    Text(". dowolny znak · .* dowolny ciąg · \\d cyfra · (…) grupa · ^ początek · $ koniec")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .padding(.leading, 98)
+                }
             }
 
             HStack(spacing: 16) {
@@ -77,24 +89,5 @@ struct ControlsPanel: View {
         }
         .padding(16)
         .background(Color(nsColor: .windowBackgroundColor))
-    }
-}
-
-struct TokenInsertMenu: View {
-    @EnvironmentObject private var session: RenameSession
-
-    var body: some View {
-        Menu {
-            Button("{name}") { session.insertToken("{name}") }
-            Button("{ext}") { session.insertToken("{ext}") }
-            Button("{parent}") { session.insertToken("{parent}") }
-            Button("{counter:001}") { session.insertToken("{counter:001}") }
-            Button("{date}") { session.insertToken("{date}") }
-            Button("{time}") { session.insertToken("{time}") }
-        } label: {
-            Label("Wstaw", systemImage: "plus.circle")
-        }
-        .menuStyle(.borderlessButton)
-        .fixedSize()
     }
 }
