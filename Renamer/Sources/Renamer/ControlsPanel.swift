@@ -14,7 +14,7 @@ struct ControlsPanel: View {
                     .textFieldStyle(.roundedBorder)
                     .font(.system(.body, design: .monospaced))
                     .onChange(of: session.template) { _ in session.onConfigChanged() }
-                VariableInsertMenu { session.insertToken($0) }
+                VariableInsertMenu(includeGroups: false) { session.insertToken($0) }
             }
 
             VStack(alignment: .leading, spacing: 4) {
@@ -27,7 +27,7 @@ struct ControlsPanel: View {
                         .font(.system(.body, design: .monospaced))
                         .onChange(of: session.search) { _ in session.onConfigChanged() }
                     if session.isRegex {
-                        RegexHelperMenu { session.insertSearchToken($0) }
+                        RegexHelperMenu { session.insertToken($0, into: \.search) }
                     }
                     Text("Zamień")
                         .foregroundStyle(.secondary)
@@ -35,7 +35,7 @@ struct ControlsPanel: View {
                         .textFieldStyle(.roundedBorder)
                         .font(.system(.body, design: .monospaced))
                         .onChange(of: session.replacement) { _ in session.onConfigChanged() }
-                    VariableInsertMenu(includeGroups: session.isRegex) { session.insertReplacementToken($0) }
+                    VariableInsertMenu(includeGroups: session.isRegex) { session.insertToken($0, into: \.replacement) }
                 }
                 if session.isRegex {
                     Text(". dowolny znak · .* dowolny ciąg · \\d cyfra · (…) grupa · ^ początek · $ koniec")

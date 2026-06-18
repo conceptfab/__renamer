@@ -116,19 +116,11 @@ final class RenameSession: ObservableObject {
         rebuildPlan()
     }
 
-    func insertToken(_ token: String) {
-        template += token
-        onConfigChanged()
-    }
-
-    func insertReplacementToken(_ token: String) {
-        replacement += token
-        onConfigChanged()
-    }
-
-    func insertSearchToken(_ token: String) {
-        search += token
-        onConfigChanged()
+    /// Appends a token to a config text field. The field's TextField `.onChange`
+    /// handler fires for programmatic edits too and already persists + rebuilds,
+    /// so we deliberately do NOT call onConfigChanged() here (avoids doing it twice).
+    func insertToken(_ token: String, into field: ReferenceWritableKeyPath<RenameSession, String> = \.template) {
+        self[keyPath: field] += token
     }
 
     func requestApply() {
