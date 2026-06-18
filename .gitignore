@@ -2,6 +2,7 @@
 .DS_Store
 .build/
 DerivedData/
+Renamer/Renamer.app
 *.xcodeproj/xcuserdata/
 *.xcworkspace/xcuserdata/
 .superpowers/
