@@ -20,13 +20,20 @@ public struct PlanBuilder {
         }
         // 2. Find/replace. The replacement is a mini-template expanded per file
         //    so tokens like {counter} work; regex backrefs ($1) pass through.
-        let expandedReplacement = try evaluator.evaluate(
-            TemplateParser.parse(config.find.replacement), item: item, index: index)
-        let effectiveFind = FindReplace(search: config.find.search,
-                                        replacement: expandedReplacement,
-                                        isRegex: config.find.isRegex,
-                                        caseSensitive: config.find.caseSensitive)
-        let replaced = try effectiveFind.apply(to: base)
+        //    Skip when there is no search term — the replacement would never be
+        //    applied, so we must not parse/expand it (avoids spurious errors).
+        let replaced: String
+        if config.find.search.isEmpty {
+            replaced = base
+        } else {
+            let expandedReplacement = try evaluator.evaluate(
+                TemplateParser.parse(config.find.replacement), item: item, index: index)
+            let effectiveFind = FindReplace(search: config.find.search,
+                                            replacement: expandedReplacement,
+                                            isRegex: config.find.isRegex,
+                                            caseSensitive: config.find.caseSensitive)
+            replaced = try effectiveFind.apply(to: base)
+        }
         // 3. Case + recompose.
         if config.lockExtension {
             let original = NameComponents(fullName: item.fullName)

@@ -34,4 +34,14 @@ final class ReplaceTokensTests: XCTestCase {
             nameCase: .none, extCase: .none, stripDiacritics: false, lockExtension: true)
         XCTAssertEqual(try builder.proposedName(for: item("/h/a_old.txt"), index: 0, config: cfg), "a.txt")
     }
+
+    func test_malformedReplacementTokenIgnoredWhenSearchEmpty() throws {
+        // Search is empty, so the replacement is never applied — a malformed
+        // token in it must NOT error the row.
+        let cfg = RenameConfig(
+            template: "",
+            find: FindReplace(search: "", replacement: "{bogus}", isRegex: false, caseSensitive: true),
+            nameCase: .none, extCase: .none, stripDiacritics: false, lockExtension: true)
+        XCTAssertEqual(try builder.proposedName(for: item("/h/a.txt"), index: 0, config: cfg), "a.txt")
+    }
 }
