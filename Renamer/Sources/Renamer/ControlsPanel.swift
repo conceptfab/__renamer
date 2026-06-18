@@ -4,8 +4,46 @@ import RenamerCore
 struct ControlsPanel: View {
     @EnvironmentObject private var session: RenameSession
 
+    @State private var showNameDialog = false
+    @State private var nameDialogText = ""
+    @State private var nameDialogMode: NameDialogMode = .saveNew
+
+    private enum NameDialogMode { case saveNew, rename }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Text("Schemat")
+                    .frame(width: 90, alignment: .trailing)
+                    .foregroundStyle(.secondary)
+                Menu(selectedPresetName) {
+                    if session.presets.isEmpty {
+                        Text("Brak zapisanych schematów").disabled(true)
+                    }
+                    ForEach(session.presets) { preset in
+                        Button(preset.name) { session.applyPreset(preset) }
+                    }
+                }
+                .fixedSize()
+
+                Button("Zapisz jako…") {
+                    nameDialogMode = .saveNew
+                    nameDialogText = ""
+                    showNameDialog = true
+                }
+                Button("Zmień nazwę…") {
+                    nameDialogMode = .rename
+                    nameDialogText = selectedPreset?.name ?? ""
+                    showNameDialog = true
+                }
+                .disabled(selectedPreset == nil)
+                Button("Usuń") {
+                    if let id = session.selectedPresetID { session.deletePreset(id: id) }
+                }
+                .disabled(selectedPreset == nil)
+                Spacer()
+            }
+
             HStack(alignment: .firstTextBaseline) {
                 Text("Nowa nazwa")
                     .frame(width: 90, alignment: .trailing)
@@ -89,5 +127,28 @@ struct ControlsPanel: View {
         }
         .padding(16)
         .background(Color(nsColor: .windowBackgroundColor))
+        .alert(nameDialogMode == .saveNew ? "Zapisz schemat" : "Zmień nazwę schematu",
+               isPresented: $showNameDialog) {
+            TextField("Nazwa schematu", text: $nameDialogText)
+            Button("Anuluj", role: .cancel) {}
+            Button("Zapisz") {
+                switch nameDialogMode {
+                case .saveNew:
+                    session.saveCurrentAsPreset(name: nameDialogText)
+                case .rename:
+                    if let id = session.selectedPresetID {
+                        session.renamePreset(id: id, to: nameDialogText)
+                    }
+                }
+            }
+        }
+    }
+
+    private var selectedPreset: Preset? {
+        session.presets.first { $0.id == session.selectedPresetID }
+    }
+
+    private var selectedPresetName: String {
+        selectedPreset?.name ?? "Wybierz schemat"
     }
 }
