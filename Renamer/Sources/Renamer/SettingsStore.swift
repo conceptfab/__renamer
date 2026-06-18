@@ -11,6 +11,7 @@ struct SettingsStore {
         var nameCase: CaseMode = .none
         var extCase: CaseMode = .none
         var stripDiacritics: Bool = false
+        var lockExtension: Bool = true
     }
 
     private let defaults = UserDefaults.standard
@@ -24,6 +25,7 @@ struct SettingsStore {
         static let nameCase = "renamer.nameCase"
         static let extCase = "renamer.extCase"
         static let stripDiacritics = "renamer.stripDiacritics"
+        static let lockExtension = "renamer.lockExtension"
     }
 
     func load() -> Snapshot {
@@ -35,7 +37,8 @@ struct SettingsStore {
             caseSensitive: defaults.object(forKey: Key.caseSensitive) as? Bool ?? true,
             nameCase: CaseMode(rawValue: defaults.string(forKey: Key.nameCase) ?? "") ?? .none,
             extCase: CaseMode(rawValue: defaults.string(forKey: Key.extCase) ?? "") ?? .none,
-            stripDiacritics: defaults.bool(forKey: Key.stripDiacritics)
+            stripDiacritics: defaults.bool(forKey: Key.stripDiacritics),
+            lockExtension: defaults.object(forKey: Key.lockExtension) as? Bool ?? true
         )
     }
 
@@ -48,6 +51,7 @@ struct SettingsStore {
         defaults.set(snapshot.nameCase.rawValue, forKey: Key.nameCase)
         defaults.set(snapshot.extCase.rawValue, forKey: Key.extCase)
         defaults.set(snapshot.stripDiacritics, forKey: Key.stripDiacritics)
+        defaults.set(snapshot.lockExtension, forKey: Key.lockExtension)
     }
 }
 

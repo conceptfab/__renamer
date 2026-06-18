@@ -26,6 +26,7 @@ final class RenameSession: ObservableObject {
     @Published var nameCase: CaseMode = .none
     @Published var extCase: CaseMode = .none
     @Published var stripDiacritics: Bool = false
+    @Published var lockExtension: Bool = true
     @Published var rows: [RenameRow] = []
     @Published var statusMessage: String = "Przeciągnij pliki lub użyj \"Otwórz…\""
     @Published var sortKey: PreviewSortKey = .oldName
@@ -58,6 +59,7 @@ final class RenameSession: ObservableObject {
         nameCase = s.nameCase
         extCase = s.extCase
         stripDiacritics = s.stripDiacritics
+        lockExtension = s.lockExtension
     }
 
     func persistSettings() {
@@ -69,7 +71,8 @@ final class RenameSession: ObservableObject {
             caseSensitive: caseSensitive,
             nameCase: nameCase,
             extCase: extCase,
-            stripDiacritics: stripDiacritics
+            stripDiacritics: stripDiacritics,
+            lockExtension: lockExtension
         ))
     }
 
@@ -189,7 +192,8 @@ final class RenameSession: ObservableObject {
             find: FindReplace(search: search, replacement: replacement, isRegex: isRegex, caseSensitive: caseSensitive),
             nameCase: nameCase,
             extCase: extCase,
-            stripDiacritics: stripDiacritics
+            stripDiacritics: stripDiacritics,
+            lockExtension: lockExtension
         )
         let sorted = sortedItems(items)
         rows = sortedRows(engine.plan(items: sorted, config: config))
