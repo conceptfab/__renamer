@@ -28,8 +28,8 @@ struct ResultBanner: View {
         .padding(.vertical, 10)
         .background(Color.green)
         .clipShape(RoundedRectangle(cornerRadius: 10))
+        .shadow(radius: 6)
         .padding(.horizontal, 16)
         .padding(.top, 8)
-        .shadow(radius: 6)
     }
 }

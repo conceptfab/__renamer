@@ -217,6 +217,7 @@ final class RenameSession: ObservableObject {
                 statusMessage = "Zmieniono \(toApply.count) plik(ów)."
                 showSuccessBanner(count: toApply.count)
             } else {
+                dismissBanner()
                 let lines = result.failures.map {
                     FailureLine(name: $0.move.to.lastPathComponent, message: $0.message)
                 }
@@ -229,6 +230,7 @@ final class RenameSession: ObservableObject {
             }
             rebuildPlan()
         } catch {
+            dismissBanner()
             failureReport = FailureReport(successCount: 0,
                                           failures: [FailureLine(name: "—", message: error.localizedDescription)])
             statusMessage = "Błąd: \(error.localizedDescription)"
