@@ -27,6 +27,8 @@ final class RenameSession: ObservableObject {
     @Published var extCase: CaseMode = .none
     @Published var stripDiacritics: Bool = false
     @Published var lockExtension: Bool = true
+    @Published var presets: [Preset] = []
+    @Published var selectedPresetID: UUID?
     @Published var rows: [RenameRow] = []
     @Published var statusMessage: String = "Przeciągnij pliki lub użyj \"Otwórz…\""
     @Published var sortKey: PreviewSortKey = .oldName
@@ -37,6 +39,7 @@ final class RenameSession: ObservableObject {
 
     private let engine = RenameEngine()
     private let settings = SettingsStore()
+    private let presetStore = PresetStore()
     private var undoBatch: UndoBatch?
     private var debounceTask: Task<Void, Never>?
 
@@ -46,6 +49,7 @@ final class RenameSession: ObservableObject {
 
     init() {
         loadSettings()
+        presets = presetStore.load()
         rebuildPlan()
     }
 
@@ -121,6 +125,53 @@ final class RenameSession: ObservableObject {
     /// so we deliberately do NOT call onConfigChanged() here (avoids doing it twice).
     func insertToken(_ token: String, into field: ReferenceWritableKeyPath<RenameSession, String>) {
         self[keyPath: field] += token
+    }
+
+    var currentConfig: RenameConfig {
+        RenameConfig(
+            template: template,
+            find: FindReplace(search: search, replacement: replacement, isRegex: isRegex, caseSensitive: caseSensitive),
+            nameCase: nameCase, extCase: extCase, stripDiacritics: stripDiacritics, lockExtension: lockExtension)
+    }
+
+    func loadConfig(_ config: RenameConfig) {
+        template = config.template
+        search = config.find.search
+        replacement = config.find.replacement
+        isRegex = config.find.isRegex
+        caseSensitive = config.find.caseSensitive
+        nameCase = config.nameCase
+        extCase = config.extCase
+        stripDiacritics = config.stripDiacritics
+        lockExtension = config.lockExtension
+        onConfigChanged()
+    }
+
+    func applyPreset(_ preset: Preset) {
+        loadConfig(preset.config)
+        selectedPresetID = preset.id
+    }
+
+    func saveCurrentAsPreset(name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        let preset = Preset(name: trimmed, config: currentConfig)
+        presets = PresetManager.add(preset, to: presets)
+        presetStore.save(presets)
+        selectedPresetID = preset.id
+    }
+
+    func deletePreset(id: UUID) {
+        presets = PresetManager.delete(id: id, from: presets)
+        presetStore.save(presets)
+        if selectedPresetID == id { selectedPresetID = nil }
+    }
+
+    func renamePreset(id: UUID, to name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        presets = PresetManager.rename(id: id, to: trimmed, in: presets)
+        presetStore.save(presets)
     }
 
     func requestApply() {
