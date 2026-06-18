@@ -1,6 +1,6 @@
 import Foundation
 
-public struct RenameConfig: Equatable {
+public struct RenameConfig: Equatable, Codable {
     public var template: String
     public var find: FindReplace
     public var nameCase: CaseMode

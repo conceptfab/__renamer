@@ -1,6 +1,6 @@
 import Foundation
 
-public enum CaseMode: String, Equatable, CaseIterable {
+public enum CaseMode: String, Equatable, CaseIterable, Codable {
     case none, lower, upper, title
 }
 

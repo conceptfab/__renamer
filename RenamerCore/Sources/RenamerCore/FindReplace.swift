@@ -4,7 +4,7 @@ public enum FindReplaceError: Error, Equatable {
     case invalidRegex(String)
 }
 
-public struct FindReplace: Equatable {
+public struct FindReplace: Equatable, Codable {
     public var search: String
     public var replacement: String
     public var isRegex: Bool
