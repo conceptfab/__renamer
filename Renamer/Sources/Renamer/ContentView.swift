@@ -19,6 +19,16 @@ struct ContentView: View {
             Divider()
             FooterBar()
         }
+        .overlay(alignment: .top) {
+            if let banner = session.successBanner {
+                ResultBanner(banner: banner)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .animation(.easeInOut(duration: 0.25), value: session.successBanner)
+        .sheet(item: $session.failureReport) { report in
+            FailureReportSheet(report: report)
+        }
         .alert("Nadpisać istniejące pliki?", isPresented: $session.showOverwriteAlert) {
             Button("Anuluj", role: .cancel) {}
             Button("Kontynuuj", role: .destructive) {

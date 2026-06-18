@@ -15,6 +15,22 @@ enum PreviewSortKey: String, CaseIterable, Identifiable {
     }
 }
 
+struct SuccessBanner: Equatable {
+    let count: Int
+}
+
+struct FailureLine: Identifiable, Equatable {
+    let id = UUID()
+    let name: String
+    let message: String
+}
+
+struct FailureReport: Identifiable, Equatable {
+    let id = UUID()
+    let successCount: Int
+    let failures: [FailureLine]
+}
+
 @MainActor
 final class RenameSession: ObservableObject {
     @Published var items: [FileItem] = []
@@ -36,12 +52,15 @@ final class RenameSession: ObservableObject {
     @Published var isApplying: Bool = false
     @Published var canUndo: Bool = false
     @Published var showOverwriteAlert: Bool = false
+    @Published var successBanner: SuccessBanner?
+    @Published var failureReport: FailureReport?
 
     private let engine = RenameEngine()
     private let settings = SettingsStore()
     private let presetStore = PresetStore()
     private var undoBatch: UndoBatch?
     private var debounceTask: Task<Void, Never>?
+    private var bannerTask: Task<Void, Never>?
 
     var errorCount: Int { rows.filter { $0.status == .error }.count }
     var warningCount: Int { rows.filter { $0.status == .warning }.count }
@@ -196,14 +215,39 @@ final class RenameSession: ObservableObject {
                 canUndo = true
                 items = FileItemLoader.load(items.map(\.url))
                 statusMessage = "Zmieniono \(toApply.count) plik(ów)."
+                showSuccessBanner(count: toApply.count)
             } else {
-                let n = result.failures.count
-                statusMessage = "Błędy: \(n) — \(result.failures.map(\.message).joined(separator: "; "))"
+                let lines = result.failures.map {
+                    FailureLine(name: $0.move.to.lastPathComponent, message: $0.message)
+                }
+                let succeeded = max(0, toApply.count - result.failures.count)
+                failureReport = FailureReport(successCount: succeeded, failures: lines)
+                statusMessage = "Błędy: \(result.failures.count)"
+                undoBatch = result.undo
+                canUndo = !result.undo.moves.isEmpty
+                items = FileItemLoader.load(items.map(\.url))
             }
             rebuildPlan()
         } catch {
+            failureReport = FailureReport(successCount: 0,
+                                          failures: [FailureLine(name: "—", message: error.localizedDescription)])
             statusMessage = "Błąd: \(error.localizedDescription)"
         }
+    }
+
+    private func showSuccessBanner(count: Int) {
+        bannerTask?.cancel()
+        successBanner = SuccessBanner(count: count)
+        bannerTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 4_000_000_000)
+            guard let self, !Task.isCancelled else { return }
+            self.successBanner = nil
+        }
+    }
+
+    func dismissBanner() {
+        bannerTask?.cancel()
+        successBanner = nil
     }
 
     func undoLast() {
@@ -212,6 +256,7 @@ final class RenameSession: ObservableObject {
             try undoBatch.undo()
             self.undoBatch = nil
             canUndo = false
+            dismissBanner()
             items = FileItemLoader.load(items.map(\.url))
             statusMessage = "Cofnięto ostatnią operację."
             rebuildPlan()
