@@ -18,8 +18,15 @@ public struct PlanBuilder {
             let evaluated = try evaluator.evaluate(segments, item: item, index: index)
             base = config.lockExtension ? NameComponents(fullName: evaluated).base : evaluated
         }
-        // 2. Find/replace.
-        let replaced = try config.find.apply(to: base)
+        // 2. Find/replace. The replacement is a mini-template expanded per file
+        //    so tokens like {counter} work; regex backrefs ($1) pass through.
+        let expandedReplacement = try evaluator.evaluate(
+            TemplateParser.parse(config.find.replacement), item: item, index: index)
+        let effectiveFind = FindReplace(search: config.find.search,
+                                        replacement: expandedReplacement,
+                                        isRegex: config.find.isRegex,
+                                        caseSensitive: config.find.caseSensitive)
+        let replaced = try effectiveFind.apply(to: base)
         // 3. Case + recompose.
         if config.lockExtension {
             let original = NameComponents(fullName: item.fullName)
