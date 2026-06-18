@@ -14,7 +14,7 @@ struct ControlsPanel: View {
                     .textFieldStyle(.roundedBorder)
                     .font(.system(.body, design: .monospaced))
                     .onChange(of: session.template) { _ in session.onConfigChanged() }
-                VariableInsertMenu(includeGroups: false) { session.insertToken($0) }
+                VariableInsertMenu(includeGroups: false) { session.insertToken($0, into: \.template) }
             }
 
             VStack(alignment: .leading, spacing: 4) {

@@ -119,7 +119,7 @@ final class RenameSession: ObservableObject {
     /// Appends a token to a config text field. The field's TextField `.onChange`
     /// handler fires for programmatic edits too and already persists + rebuilds,
     /// so we deliberately do NOT call onConfigChanged() here (avoids doing it twice).
-    func insertToken(_ token: String, into field: ReferenceWritableKeyPath<RenameSession, String> = \.template) {
+    func insertToken(_ token: String, into field: ReferenceWritableKeyPath<RenameSession, String>) {
         self[keyPath: field] += token
     }
 
