@@ -1,0 +1,81 @@
+<h2>Jak użytkownik buduje regułę zmiany nazwy?</h2>
+<p class="subtitle">To definiuje całe „czytelne UI". Dwa sprawdzone podejścia — kliknij to, które bardziej Ci pasuje.</p>
+
+<style>
+  .win { background:#fff; border:1px solid #d0d0d5; border-radius:10px; overflow:hidden; box-shadow:0 8px 24px rgba(0,0,0,.12); font-size:12px; color:#1d1d1f; }
+  .win-title { background:linear-gradient(#f6f6f8,#e9e9ee); padding:7px 12px; border-bottom:1px solid #d8d8dd; display:flex; align-items:center; gap:6px; font-weight:600; }
+  .dot { width:9px;height:9px;border-radius:50%; }
+  .controls { padding:10px 12px; border-bottom:1px solid #ececf0; background:#fafafc; }
+  .field { display:flex; align-items:center; gap:6px; margin:5px 0; }
+  .field label { width:74px; color:#666; font-size:11px; }
+  .inp { flex:1; background:#fff; border:1px solid #ccc; border-radius:6px; padding:4px 7px; font-family:ui-monospace,Menlo,monospace; font-size:11px; }
+  .chip { background:#e3effe; color:#0a62d0; border:1px solid #b9d6fb; border-radius:5px; padding:2px 6px; font-family:ui-monospace,monospace; font-size:10px; }
+  .btn { background:#0a62d0; color:#fff; border-radius:6px; padding:4px 12px; font-weight:600; font-size:11px; }
+  .rows { padding:4px 0; }
+  .row { display:flex; justify-content:space-between; padding:4px 12px; border-bottom:1px solid #f3f3f6; font-family:ui-monospace,monospace; font-size:11px; }
+  .old { color:#888; } .arrow{color:#bbb;padding:0 6px;} .new{color:#1d1d1f;font-weight:600;}
+  .warn { color:#d4860a; }
+  .rulecard { background:#fff;border:1px solid #d8d8dd;border-radius:7px;padding:6px 9px;margin:5px 0;display:flex;align-items:center;gap:8px; }
+  .rulenum { background:#0a62d0;color:#fff;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700; }
+  .rulebody{flex:1;} .rulebody b{font-size:11px;} .rulebody span{color:#888;font-size:10px;}
+  .grab{color:#ccc;}
+</style>
+
+<div class="split">
+
+  <div class="option" data-choice="a" onclick="toggleSelect(this)" style="cursor:pointer">
+    <div class="letter">A</div>
+    <div class="content" style="width:100%">
+      <h3>Szablon + panele (jak Salamander)</h3>
+      <p>Jedno pole „Nowa nazwa" ze zmiennymi + osobne sekcje szukaj‑zamień i wielkość liter. Wszystko widoczne na raz.</p>
+      <div class="win" style="margin-top:10px">
+        <div class="win-title"><span class="dot" style="background:#ff5f57"></span><span class="dot" style="background:#febc2e"></span><span class="dot" style="background:#28c840"></span>&nbsp; Zmień nazwy — 24 pliki</div>
+        <div class="controls">
+          <div class="field"><label>Nowa nazwa</label><span class="inp">photo_<span class="chip">{counter:001}</span>.<span class="chip">{ext}</span></span><span class="chip">+ ▾</span></div>
+          <div class="field"><label>Szukaj</label><span class="inp">IMG_</span><label style="width:auto">Zamień</label><span class="inp">photo_</span></div>
+          <div class="field"><label>Opcje</label><span style="font-size:10px;color:#666">☐ regex&nbsp;&nbsp;☐ rozróżniaj wielkość&nbsp;&nbsp;Wielkość: <b>bez zmian ▾</b></span></div>
+        </div>
+        <div class="rows">
+          <div class="row"><span class="old">IMG_2381.jpg</span><span><span class="arrow">→</span><span class="new">photo_001.jpg</span></span></div>
+          <div class="row"><span class="old">IMG_2382.jpg</span><span><span class="arrow">→</span><span class="new">photo_002.jpg</span></span></div>
+          <div class="row"><span class="old">IMG_2383.jpg</span><span><span class="arrow">→</span><span class="new warn">photo_003.jpg ⚠</span></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)" style="cursor:pointer">
+    <div class="letter">B</div>
+    <div class="content" style="width:100%">
+      <h3>Stos reguł (potok kroków)</h3>
+      <p>Dodajesz kroki (Zamień, Numeruj, Wielkość…) jeden po drugim. Każdy to karta, można je przestawiać. Bardzo „macowe".</p>
+      <div class="win" style="margin-top:10px">
+        <div class="win-title"><span class="dot" style="background:#ff5f57"></span><span class="dot" style="background:#febc2e"></span><span class="dot" style="background:#28c840"></span>&nbsp; Zmień nazwy — 24 pliki</div>
+        <div style="display:flex">
+          <div style="width:48%;padding:8px;border-right:1px solid #ececf0;background:#fafafc">
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:#888;margin-bottom:2px"><span>REGUŁY</span><span class="chip">+</span></div>
+            <div class="rulecard"><span class="grab">⠿</span><span class="rulenum">1</span><div class="rulebody"><b>Zamień tekst</b><br><span>IMG_ → photo_</span></div></div>
+            <div class="rulecard"><span class="grab">⠿</span><span class="rulenum">2</span><div class="rulebody"><b>Numeruj</b><br><span>od 1, 3 cyfry, sufiks</span></div></div>
+            <div class="rulecard"><span class="grab">⠿</span><span class="rulenum">3</span><div class="rulebody"><b>Wielkość liter</b><br><span>małe litery</span></div></div>
+          </div>
+          <div style="width:52%">
+            <div class="rows">
+              <div class="row" style="flex-direction:column;align-items:flex-start;gap:1px"><span class="old">IMG_2381.jpg</span><span class="new">photo_001.jpg</span></div>
+              <div class="row" style="flex-direction:column;align-items:flex-start;gap:1px"><span class="old">IMG_2382.jpg</span><span class="new">photo_002.jpg</span></div>
+              <div class="row" style="flex-direction:column;align-items:flex-start;gap:1px"><span class="old">IMG_2383.jpg</span><span class="new warn">photo_003.jpg ⚠</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="section" style="margin-top:14px">
+  <div class="label">Różnica w skrócie</div>
+  <div class="pros-cons">
+    <div class="pros"><h4>A — Szablon</h4><ul><li>Mega zwięzłe, jak oryginał</li><li>Zaawansowani robią wszystko jednym wzorcem</li><li>Mniej klikania dla prostych zmian</li></ul></div>
+    <div class="cons"><h4>B — Stos reguł</h4><ul><li>Czytelne dla każdego, samoopisujące</li><li>Łatwo łączyć wiele operacji</li><li>Standard współczesnych macowych renamerów</li></ul></div>
+  </div>
+</div>

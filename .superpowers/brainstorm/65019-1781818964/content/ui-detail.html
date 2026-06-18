@@ -1,0 +1,91 @@
+<h2>Dopracowane okno (wariant A) + menu wstawiania zmiennych</h2>
+<p class="subtitle">Tak mniej więcej wyglądałoby główne okno. Sprawdź czytelność i podział na sekcje.</p>
+
+<style>
+  .win { background:#fff; border:1px solid #cfcfd4; border-radius:11px; overflow:hidden; box-shadow:0 12px 34px rgba(0,0,0,.16); font-size:12.5px; color:#1d1d1f; max-width:680px; margin:0 auto; }
+  .tb { background:linear-gradient(#f7f7f9,#e9e9ee); padding:9px 13px; border-bottom:1px solid #d6d6db; display:flex; align-items:center; gap:7px; }
+  .dot{width:11px;height:11px;border-radius:50%;}
+  .tb .ttl{font-weight:600;margin-left:6px;}
+  .tb .spacer{flex:1;}
+  .pill{background:#eef0f3;border:1px solid #dcdee3;border-radius:20px;padding:2px 10px;font-size:11px;color:#555;}
+  .ctl{padding:11px 13px;border-bottom:1px solid #ededf1;background:#fbfbfd;}
+  .field{display:flex;align-items:center;gap:7px;margin:6px 0;position:relative;}
+  .field>label{width:88px;color:#5b5b60;font-size:11.5px;text-align:right;}
+  .inp{flex:1;background:#fff;border:1px solid #c6c6cc;border-radius:7px;padding:5px 8px;font-family:ui-monospace,Menlo,monospace;font-size:11.5px;display:flex;align-items:center;gap:3px;flex-wrap:wrap;}
+  .tok{background:#e3effe;color:#0a62d0;border:1px solid #b9d6fb;border-radius:5px;padding:1px 6px;font-size:10.5px;}
+  .addbtn{background:#fff;border:1px solid #c6c6cc;border-radius:7px;padding:5px 9px;font-size:11px;cursor:pointer;white-space:nowrap;}
+  .small{font-size:10.5px;color:#666;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+  .sel{appearance:none;background:#fff;border:1px solid #c6c6cc;border-radius:6px;padding:2px 18px 2px 7px;font-size:11px;}
+  .rows{max-height:200px;overflow:auto;}
+  .rh{display:flex;padding:5px 13px;font-size:10px;color:#999;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid #eee;background:#fcfcfe;position:sticky;top:0;}
+  .rh .c1{flex:1;} .rh .c2{flex:1;}
+  .row{display:flex;padding:5px 13px;border-bottom:1px solid #f4f4f7;font-family:ui-monospace,Menlo,monospace;font-size:11.5px;align-items:center;}
+  .row .c1{flex:1;color:#8a8a8f;} .row .c2{flex:1;color:#1d1d1f;font-weight:600;}
+  .row.bad{background:#fff5f4;} .row.bad .c2{color:#d23b2e;}
+  .row.warn .c2{color:#c5820a;}
+  .menu{position:absolute;top:32px;left:96px;width:300px;background:#fff;border:1px solid #cfcfd4;border-radius:9px;box-shadow:0 14px 40px rgba(0,0,0,.22);overflow:hidden;z-index:5;}
+  .menu .mh{padding:6px 11px;font-size:10px;text-transform:uppercase;color:#999;background:#fafafc;border-bottom:1px solid #eee;}
+  .mi{padding:6px 11px;display:flex;justify-content:space-between;font-size:11.5px;border-bottom:1px solid #f4f4f7;}
+  .mi:hover{background:#e8f1ff;}
+  .mi code{font-family:ui-monospace,monospace;color:#0a62d0;background:#eef5ff;border-radius:4px;padding:0 5px;font-size:10.5px;}
+  .mi span{color:#888;}
+  .foot{padding:9px 13px;display:flex;align-items:center;gap:9px;background:#f7f7f9;border-top:1px solid #e3e3e8;}
+  .status{flex:1;font-size:11px;color:#666;}
+  .gbtn{border-radius:7px;padding:5px 13px;font-size:11.5px;font-weight:600;border:1px solid #c6c6cc;background:#fff;cursor:pointer;}
+  .gbtn.primary{background:#0a62d0;color:#fff;border-color:#0a62d0;}
+</style>
+
+<div class="win">
+  <div class="tb">
+    <span class="dot" style="background:#ff5f57"></span><span class="dot" style="background:#febc2e"></span><span class="dot" style="background:#28c840"></span>
+    <span class="ttl">Zmień nazwy</span>
+    <span class="spacer"></span>
+    <span class="pill">24 pliki · 1 problem</span>
+  </div>
+
+  <div class="ctl">
+    <div class="field">
+      <label>Nowa nazwa</label>
+      <span class="inp">wakacje_<span class="tok">{counter:001}</span>_<span class="tok">{date:yyyy-MM-dd}</span>.<span class="tok">{ext}</span></span>
+      <span class="addbtn">+ Wstaw ▾</span>
+      <div class="menu">
+        <div class="mh">Wstaw zmienną</div>
+        <div class="mi"><span>Nazwa (bez rozszerzenia)</span><code>{name}</code></div>
+        <div class="mi"><span>Rozszerzenie</span><code>{ext}</code></div>
+        <div class="mi"><span>Licznik…</span><code>{counter:001}</code></div>
+        <div class="mi"><span>Data modyfikacji…</span><code>{date:…}</code></div>
+        <div class="mi"><span>Czas modyfikacji…</span><code>{time:…}</code></div>
+        <div class="mi"><span>Folder nadrzędny</span><code>{parent}</code></div>
+        <div class="mi"><span>Fragment nazwy…</span><code>{name:1-5}</code></div>
+      </div>
+    </div>
+    <div class="field"><label>Szukaj</label><span class="inp" style="font-family:ui-monospace,monospace">IMG_(\d+)</span><label style="width:auto">Zamień</label><span class="inp" style="font-family:ui-monospace,monospace">foto_$1</span></div>
+    <div class="field"><label></label><div class="small"><span>☑ Wyrażenie regularne</span><span>☐ Rozróżniaj wielkość</span></div></div>
+    <div class="field"><label>Wielkość</label><div class="small">Nazwa: <select class="sel"><option>bez zmian</option></select> &nbsp; Rozszerzenie: <select class="sel"><option>małe litery</option></select> &nbsp; <span>☐ usuń znaki diakrytyczne</span></div></div>
+  </div>
+
+  <div class="rh"><span class="c1">Stara nazwa</span><span class="c2">Nowa nazwa</span></div>
+  <div class="rows">
+    <div class="row"><span class="c1">IMG_2381.jpg</span><span class="c2">wakacje_001_2024-07-12.jpg</span></div>
+    <div class="row"><span class="c1">IMG_2382.jpg</span><span class="c2">wakacje_002_2024-07-12.jpg</span></div>
+    <div class="row warn"><span class="c1">notatka.txt</span><span class="c2">wakacje_003_2024-07-12.txt ⚠</span></div>
+    <div class="row bad"><span class="c1">IMG_2384.jpg</span><span class="c2">wakacje_003_2024-07-12.jpg ⛔ duplikat</span></div>
+    <div class="row"><span class="c1">IMG_2385.jpg</span><span class="c2">wakacje_005_2024-07-12.jpg</span></div>
+  </div>
+
+  <div class="foot">
+    <span class="status">23 gotowe · 1 kolizja nazw (zablokuje zmianę)</span>
+    <button class="gbtn">Cofnij ostatnią</button>
+    <button class="gbtn primary">Zmień nazwy</button>
+  </div>
+</div>
+
+<div class="section" style="margin-top:14px;max-width:680px;margin-left:auto;margin-right:auto">
+  <div class="label">Co pokazuje makieta</div>
+  <ul style="font-size:13px;line-height:1.5">
+    <li><b>Menu „+ Wstaw"</b> — klik na zmienną wstawia token; pozycje z „…" (Licznik, Data) otwierają mały konfigurator (start, krok, liczba cyfr / format daty).</li>
+    <li><b>Tokeny jako kolorowe „pigułki"</b> w polu — czytelne, edytowalne jak tekst.</li>
+    <li><b>Podgląd na żywo</b> — przeliczany po każdej zmianie; ⚠ ostrzeżenie (nietypowy przypadek), ⛔ twardy błąd (duplikat / niedozwolony znak) blokuje „Zmień nazwy".</li>
+    <li><b>Pasek statusu</b> + przyciski <b>Cofnij ostatnią</b> i <b>Zmień nazwy</b>.</li>
+  </ul>
+</div>

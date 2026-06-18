@@ -1,0 +1,42 @@
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editor and IDE state
+.idea/
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Visual Studio build output and caches
+.vs/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Ww]in32/
+ipch/
+*.aps
+*.ncb
+*.opendb
+*.pdb
+*.ilk
+*.obj
+*.pch
+*.tlog
+*.log
+
+# Python/cache artifacts used by tools
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.cache/
+salamander-main/
+# Local environment
+.env
+.env.*
+!.env.example
