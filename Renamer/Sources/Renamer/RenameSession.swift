@@ -208,20 +208,19 @@ final class RenameSession: ObservableObject {
         defer { isApplying = false }
 
         do {
-            let toApply = displayedRows().filter { $0.status != .error && $0.proposedName != $0.item.fullName }
             let result = try engine.apply(rows: displayedRows(), overwrite: overwrite)
+            let succeeded = result.successfulRenames.count
             if result.failures.isEmpty {
                 undoBatch = result.undo
                 canUndo = true
                 items = FileItemLoader.load(items.map(\.url))
-                statusMessage = "Zmieniono \(toApply.count) plik(ów)."
-                showSuccessBanner(count: toApply.count)
+                statusMessage = "Zmieniono \(succeeded) plik(ów)."
+                showSuccessBanner(count: succeeded)
             } else {
                 dismissBanner()
                 let lines = result.failures.map {
-                    FailureLine(name: $0.move.to.lastPathComponent, message: $0.message)
+                    FailureLine(name: $0.move.from.lastPathComponent, message: $0.message)
                 }
-                let succeeded = max(0, toApply.count - result.failures.count)
                 failureReport = FailureReport(successCount: succeeded, failures: lines)
                 statusMessage = "Błędy: \(result.failures.count)"
                 undoBatch = result.undo
