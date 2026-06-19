@@ -20,7 +20,7 @@ struct DropZoneView: View {
                     .foregroundStyle(.secondary)
                 Text("Przeciągnij pliki tutaj")
                     .font(.title3)
-                Button("Otwórz…") { openFiles() }
+                Button("Otwórz…") { presentOpenFilesPanel(into: session) }
                     .keyboardShortcut("o", modifiers: .command)
             }
         }
@@ -30,30 +30,25 @@ struct DropZoneView: View {
         }
     }
 
-    private func openFiles() {
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = true
-        panel.canChooseDirectories = false
-        panel.allowsMultipleSelection = true
-        panel.begin { response in
-            guard response == .OK else { return }
-            session.addURLs(panel.urls)
-        }
-    }
-
     private func handleDrop(_ providers: [NSItemProvider]) -> Bool {
-        var urls: [URL] = []
         let group = DispatchGroup()
+        let lock = NSLock()
+        var urls: [URL] = []
 
         for provider in providers where provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
             group.enter()
             provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
                 defer { group.leave() }
+                var resolved: URL?
                 if let url = item as? URL {
-                    urls.append(url)
+                    resolved = url
                 } else if let data = item as? Data, let url = URL(dataRepresentation: data, relativeTo: nil) {
-                    urls.append(url)
+                    resolved = url
                 }
+                guard let resolved else { return }
+                lock.lock()
+                urls.append(resolved)
+                lock.unlock()
             }
         }
 
