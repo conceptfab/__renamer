@@ -69,6 +69,13 @@ if [[ ! -x "$BIN" ]]; then
     exit 1
 fi
 
+# --- app icon ----------------------------------------------------------------
+ICON="$RENAMER_DIR/Resources/AppIcon.icns"
+if [[ ! -f "$ICON" ]]; then
+    echo "==> Generating app icon"
+    "$RENAMER_DIR/scripts/generate-icon.sh"
+fi
+
 # --- assemble .app bundle ----------------------------------------------------
 echo "==> Assembling $APP"
 mkdir -p "$DIST"
@@ -77,6 +84,7 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/Renamer"
 chmod +x "$APP/Contents/MacOS/Renamer"
 cp "$INFO_PLIST" "$APP/Contents/Info.plist"
+cp "$ICON" "$APP/Contents/Resources/AppIcon.icns"
 
 # --- ad-hoc code signing (so it launches locally without Gatekeeper noise) ---
 echo "==> Code signing (ad-hoc)"
