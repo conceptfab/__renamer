@@ -96,11 +96,9 @@ struct ControlsPanel: View {
                     .onChange(of: session.caseSensitive) { _ in session.onConfigChanged() }
                 Toggle("Usuń diakrytyki", isOn: $session.stripDiacritics)
                     .onChange(of: session.stripDiacritics) { _ in session.onConfigChanged() }
-                Toggle("Chroń rozszerzenie pliku", isOn: $session.lockExtension)
-                    .onChange(of: session.lockExtension) { _ in session.onConfigChanged() }
-            }
 
-            HStack(spacing: 12) {
+                Divider().frame(height: 16)
+
                 Text("Wielkość")
                     .foregroundStyle(.secondary)
                 Picker("Nazwa", selection: $session.nameCase) {
@@ -109,8 +107,11 @@ struct ControlsPanel: View {
                     }
                 }
                 .labelsHidden()
-                .frame(width: 160)
+                .frame(width: 150)
                 .onChange(of: session.nameCase) { _ in session.onConfigChanged() }
+
+                Toggle("Chroń rozszerzenie pliku", isOn: $session.lockExtension)
+                    .onChange(of: session.lockExtension) { _ in session.onConfigChanged() }
 
                 Text("Rozszerzenie")
                     .foregroundStyle(session.lockExtension ? .tertiary : .secondary)
@@ -120,9 +121,11 @@ struct ControlsPanel: View {
                     }
                 }
                 .labelsHidden()
-                .frame(width: 160)
+                .frame(width: 150)
                 .disabled(session.lockExtension)
                 .onChange(of: session.extCase) { _ in session.onConfigChanged() }
+
+                Spacer()
             }
         }
         .padding(16)
