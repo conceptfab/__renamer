@@ -66,4 +66,52 @@ final class RenameExecutorTests: XCTestCase {
         XCTAssertEqual(read("b.txt"), "B")
         XCTAssertNil(read("x.txt"))
     }
+
+    func test_targetExistsWithoutOverwrite_restoresOriginal() throws {
+        let a = try write("a.txt", "A")
+        _ = try write("b.txt", "EXISTING")
+        let moves = [Move(from: a, to: dir.appendingPathComponent("b.txt"))]
+        let result = try RenameExecutor().execute(moves, overwrite: false)
+
+        XCTAssertEqual(result.failures.count, 1)
+        XCTAssertEqual(result.failures.first?.message, "Cel istnieje")
+        XCTAssertEqual(read("a.txt"), "A")
+        XCTAssertEqual(read("b.txt"), "EXISTING")
+        let names = try FileManager.default.contentsOfDirectory(atPath: dir.path)
+        XCTAssertFalse(names.contains { $0.hasPrefix(".renamer-tmp-") })
+        XCTAssertTrue(result.successfulRenames.isEmpty)
+        XCTAssertTrue(result.undo.moves.isEmpty)
+    }
+
+    func test_targetExistsWithOverwrite_trashesAndRenames() throws {
+        let a = try write("a.txt", "A")
+        _ = try write("b.txt", "OLD")
+        let moves = [Move(from: a, to: dir.appendingPathComponent("b.txt"))]
+        let result = try RenameExecutor().execute(moves, overwrite: true)
+
+        XCTAssertTrue(result.failures.isEmpty)
+        XCTAssertEqual(read("b.txt"), "A")
+        XCTAssertNil(read("a.txt"))
+        XCTAssertEqual(result.successfulRenames, [Move(from: a, to: dir.appendingPathComponent("b.txt"))])
+    }
+
+    func test_partialFailure_reportsOnlyActualSuccesses() throws {
+        let a = try write("a.txt", "A")
+        let b = try write("b.txt", "B")
+        _ = try write("c.txt", "EXISTING")
+        let moves = [
+            Move(from: a, to: dir.appendingPathComponent("x.txt")),
+            Move(from: b, to: dir.appendingPathComponent("c.txt")),
+        ]
+        let result = try RenameExecutor().execute(moves, overwrite: false)
+
+        XCTAssertEqual(result.successfulRenames.count, 1)
+        XCTAssertEqual(result.successfulRenames.first?.to.lastPathComponent, "x.txt")
+        XCTAssertEqual(result.failures.count, 1)
+        XCTAssertEqual(read("x.txt"), "A")
+        XCTAssertEqual(read("b.txt"), "B")
+        XCTAssertEqual(read("c.txt"), "EXISTING")
+        let names = try FileManager.default.contentsOfDirectory(atPath: dir.path)
+        XCTAssertFalse(names.contains { $0.hasPrefix(".renamer-tmp-") })
+    }
 }
