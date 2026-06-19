@@ -39,17 +39,6 @@ struct ContentView: View {
         }
     }
 
-    private func openMoreFiles() {
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = true
-        panel.canChooseDirectories = false
-        panel.allowsMultipleSelection = true
-        panel.begin { response in
-            guard response == .OK else { return }
-            session.addURLs(panel.urls)
-        }
-    }
-
     private var header: some View {
         HStack {
             Text("Zmień nazwy")
@@ -58,7 +47,7 @@ struct ContentView: View {
             if !session.items.isEmpty {
                 Text("\(session.items.count) plików · \(session.errorCount + session.warningCount) problemów")
                     .foregroundStyle(.secondary)
-                Button("Dodaj pliki…") { openMoreFiles() }
+                Button("Dodaj pliki…") { presentOpenFilesPanel(into: session) }
                 Button("Wyczyść listę") { session.removeAll() }
             }
         }
