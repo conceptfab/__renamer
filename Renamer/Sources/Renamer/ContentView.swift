@@ -3,43 +3,20 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject private var session: RenameSession
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @AppStorage("renamer.appearance") private var appearance: AppAppearance = .light
     @State private var showInspector = true
 
     var body: some View {
         workspace
             .navigationTitle("Renamer")
-            .preferredColorScheme(appearance.colorScheme)
-            .tint(.blue)
             .toolbar {
-                ToolbarItem(placement: .navigation) {
-                    Button {
-                        presentOpenFilesPanel(into: session)
-                    } label: {
-                        Label("Dodaj pliki", systemImage: "plus")
-                    }
-                    .labelStyle(.titleAndIcon)
-                    .keyboardShortcut("o", modifiers: .command)
-                    .help("Dodaj pliki (⌘O)")
-                }
+                addFilesToolbarItem
 
-                ToolbarItemGroup(placement: .automatic) {
+                ToolbarItemGroup(placement: .primaryAction) {
                     Button(action: session.undoLast) {
                         Label("Cofnij zmianę nazw", systemImage: "arrow.uturn.backward")
                     }
                     .disabled(!session.canUndo)
                     .help("Cofnij ostatnią zmianę nazw")
-
-                    Menu {
-                        Picker("Wygląd", selection: $appearance) {
-                            ForEach(AppAppearance.allCases) { option in
-                                Text(option.title).tag(option)
-                            }
-                        }
-                    } label: {
-                        Label("Wygląd", systemImage: "circle.lefthalf.filled")
-                    }
-                    .help("Wygląd aplikacji")
 
                     Button {
                         showInspector.toggle()
@@ -49,12 +26,16 @@ struct ContentView: View {
                     .help(showInspector ? "Ukryj reguły" : "Pokaż reguły")
                 }
 
+                if #available(macOS 26.0, *) {
+                    ToolbarSpacer(.fixed, placement: .primaryAction)
+                }
+
                 ToolbarItem(placement: .primaryAction) {
                     Button(action: session.requestApply) {
                         Label("Zmień nazwy", systemImage: "checkmark")
                     }
                     .labelStyle(.titleAndIcon)
-                    .modifier(PrimaryActionStyle())
+                    .buttonStyle(.borderedProminent)
                     .keyboardShortcut(.return, modifiers: .command)
                     .disabled(!session.canApply)
                 }
@@ -75,8 +56,22 @@ struct ContentView: View {
                     session.apply(overwrite: true)
                 }
             } message: {
-                Text("\(session.warningCount) plik(ów) zostanie nadpisanych. Kontynuować?")
+                Text("Liczba plików do nadpisania: \(session.warningCount). Kontynuować?")
             }
+    }
+
+    @ToolbarContentBuilder
+    private var addFilesToolbarItem: some ToolbarContent {
+        if #available(macOS 26.0, *) {
+            ToolbarItem(placement: .primaryAction) {
+                AddFilesButton()
+            }
+            .sharedBackgroundVisibility(.hidden)
+        } else {
+            ToolbarItem(placement: .primaryAction) {
+                AddFilesButton()
+            }
+        }
     }
 
     @ViewBuilder

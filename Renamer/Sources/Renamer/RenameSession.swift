@@ -214,7 +214,7 @@ final class RenameSession: ObservableObject {
                 undoBatch = result.undo
                 canUndo = true
                 items = FileItemLoader.load(items.map(\.url))
-                statusMessage = "Zmieniono \(succeeded) plik(ów)."
+                statusMessage = "Zmienione pliki: \(succeeded)"
                 showSuccessBanner(count: succeeded)
             } else {
                 dismissBanner()
@@ -324,9 +324,9 @@ final class RenameSession: ObservableObject {
 
     private func updateStatusMessage() {
         let ready = rows.filter { $0.status == .ok }.count
-        var parts = ["\(items.count) plików", "\(ready) gotowych"]
-        if errorCount > 0 { parts.append("\(errorCount) błędów") }
-        if warningCount > 0 { parts.append("\(warningCount) ostrzeżeń") }
+        var parts = ["Pliki: \(items.count)", "Gotowe: \(ready)"]
+        if errorCount > 0 { parts.append("Błędy: \(errorCount)") }
+        if warningCount > 0 { parts.append("Ostrzeżenia: \(warningCount)") }
         statusMessage = parts.joined(separator: " · ")
     }
 }

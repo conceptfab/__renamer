@@ -16,6 +16,20 @@
 #
 set -euo pipefail
 
+# SwiftUI SDK macros ship with the full Xcode installation. Prefer it when the
+# machine's global selection points to Command Line Tools, without changing the
+# global developer directory or overriding an explicit caller choice.
+if [[ -z "${DEVELOPER_DIR:-}" && "$(xcode-select -p)" == */CommandLineTools ]]; then
+    for RENAMER_DEVELOPER_DIR in \
+        /Applications/Xcode.app/Contents/Developer \
+        /Applications/Xcode-beta.app/Contents/Developer; do
+        if [[ -d "$RENAMER_DEVELOPER_DIR" ]]; then
+            export DEVELOPER_DIR="$RENAMER_DEVELOPER_DIR"
+            break
+        fi
+    done
+fi
+
 # --- paths -------------------------------------------------------------------
 RENAMER_DIR="$(cd "$(dirname "$0")/.." && pwd)"   # .../Renamer
 REPO_ROOT="$(cd "$RENAMER_DIR/.." && pwd)"        # repo root

@@ -43,7 +43,7 @@ struct ControlsPanel: View {
                 }
             }
             .formStyle(.grouped)
-            .controlSize(.large)
+            .controlSize(.regular)
             .scrollContentBackground(.hidden)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)

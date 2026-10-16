@@ -5,17 +5,17 @@ struct NameFormatControls: View {
     @EnvironmentObject private var session: RenameSession
 
     var body: some View {
-        Group {
-            Picker("Wielkość liter", selection: $session.nameCase) {
+        VStack(alignment: .leading, spacing: 14) {
+            Picker("Nazwa", selection: $session.nameCase) {
                 ForEach(CaseMode.allCases, id: \.self) { mode in
                     Text(mode.label).tag(mode)
                 }
             }
+            .pickerStyle(.menu)
             .onChange(of: session.nameCase) { _ in session.onConfigChanged() }
 
-            Toggle("Chroń rozszerzenie", isOn: $session.lockExtension)
-                .toggleStyle(.switch)
-                .controlSize(.mini)
+            Toggle("Chroń rozszerzenie pliku", isOn: $session.lockExtension)
+                .toggleStyle(.checkbox)
                 .onChange(of: session.lockExtension) { _ in session.onConfigChanged() }
 
             if !session.lockExtension {
@@ -24,13 +24,14 @@ struct NameFormatControls: View {
                         Text(mode.label).tag(mode)
                     }
                 }
+                .pickerStyle(.menu)
                 .onChange(of: session.extCase) { _ in session.onConfigChanged() }
             }
 
             Toggle("Usuń znaki diakrytyczne", isOn: $session.stripDiacritics)
-                .toggleStyle(.switch)
-                .controlSize(.mini)
+                .toggleStyle(.checkbox)
                 .onChange(of: session.stripDiacritics) { _ in session.onConfigChanged() }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

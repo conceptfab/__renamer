@@ -8,39 +8,7 @@ struct DropZoneView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        VStack(spacing: 24) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 24)
-                    .fill(Color.blue.opacity(0.08))
-                    .frame(width: 104, height: 104)
-                Image(systemName: "character.cursor.ibeam")
-                    .font(.system(size: 48, weight: .light))
-                    .foregroundStyle(.blue)
-            }
-            .accessibilityHidden(true)
-
-            VStack(spacing: 10) {
-                Text(isTargeted ? "Upuść pliki tutaj" : "Zmień nazwy plików")
-                    .font(.system(size: 27, weight: .semibold))
-                Text("Dodaj pliki, ustaw reguły i sprawdź nowe nazwy.\nWszystko w jednym miejscu.")
-                    .font(.system(size: 14))
-                    .foregroundStyle(.secondary)
-                    .lineSpacing(4)
-            }
-
-            Button {
-                presentOpenFilesPanel(into: session)
-            } label: {
-                Label("Wybierz pliki…", systemImage: "plus")
-                    .padding(.horizontal, 8)
-            }
-            .controlSize(.large)
-            .modifier(PrimaryActionStyle())
-
-            Text("lub przeciągnij je do tego okna")
-                .font(.callout)
-                .foregroundStyle(.tertiary)
-        }
+        emptyState
         .multilineTextAlignment(.center)
         .padding(32)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -57,6 +25,38 @@ struct DropZoneView: View {
         .onDrop(of: [UTType.fileURL], isTargeted: $isTargeted) { providers in
             handleDrop(providers)
         }
+    }
+
+    @ViewBuilder
+    private var emptyState: some View {
+        if #available(macOS 14.0, *) {
+            ContentUnavailableView {
+                Label(isTargeted ? "Upuść pliki tutaj" : "Dodaj pliki do zmiany nazw",
+                      systemImage: "doc.on.doc")
+            } description: {
+                Text("Przeciągnij pliki do okna lub wybierz je z dysku.")
+            } actions: {
+                openFilesButton
+            }
+        } else {
+            VStack(spacing: 16) {
+                Image(systemName: "doc.on.doc")
+                    .font(.system(size: 40, weight: .light))
+                    .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
+                Text(isTargeted ? "Upuść pliki tutaj" : "Dodaj pliki do zmiany nazw")
+                    .font(.title2)
+                Text("Przeciągnij pliki do okna lub wybierz je z dysku.")
+                    .foregroundStyle(.secondary)
+                openFilesButton
+            }
+        }
+    }
+
+    private var openFilesButton: some View {
+        Button("Wybierz pliki…") { presentOpenFilesPanel(into: session) }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
     }
 
     private func handleDrop(_ providers: [NSItemProvider]) -> Bool {

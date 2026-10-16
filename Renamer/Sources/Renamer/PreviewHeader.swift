@@ -8,7 +8,7 @@ struct PreviewHeader: View {
             VStack(alignment: .leading, spacing: 5) {
                 Text("Podgląd zmian")
                     .font(.title2.weight(.semibold))
-                Text("\(session.items.count) plików")
+                Text("Pliki: \(session.items.count)")
                     .foregroundStyle(.secondary)
             }
             Spacer()

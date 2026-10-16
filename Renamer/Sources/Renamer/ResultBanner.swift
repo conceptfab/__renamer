@@ -8,7 +8,7 @@ struct ResultBanner: View {
         HStack(spacing: 10) {
             Image(systemName: "checkmark.circle.fill")
                 .foregroundStyle(.green)
-            Text("Zmieniono \(banner.count) plik(ów)")
+            Text("Zmienione pliki: \(banner.count)")
                 .fontWeight(.medium)
             Spacer()
             Button("Cofnij") { session.undoLast() }
