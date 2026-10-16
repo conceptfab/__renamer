@@ -5,31 +5,32 @@ struct ResultBanner: View {
     let banner: SuccessBanner
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(.white)
+                .foregroundStyle(.green)
             Text("Zmieniono \(banner.count) plik(ów)")
-                .foregroundStyle(.white)
-                .fontWeight(.semibold)
+                .fontWeight(.medium)
             Spacer()
             Button("Cofnij") { session.undoLast() }
                 .buttonStyle(.borderless)
-                .foregroundStyle(.white)
                 .disabled(!session.canUndo)
             Button {
                 session.dismissBanner()
             } label: {
-                Image(systemName: "xmark")
-                    .foregroundStyle(.white)
+                Label("Zamknij powiadomienie", systemImage: "xmark")
+                    .labelStyle(.iconOnly)
             }
             .buttonStyle(.borderless)
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .background(Color.green)
-        .clipShape(RoundedRectangle(cornerRadius: 10))
-        .shadow(radius: 6)
-        .padding(.horizontal, 16)
-        .padding(.top, 8)
+        .padding(.vertical, 12)
+        .frame(maxWidth: 420)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .overlay {
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(.quaternary, lineWidth: 0.5)
+        }
+        .shadow(color: .black.opacity(0.1), radius: 12, y: 4)
+        .padding(16)
     }
 }

@@ -1,12 +1,12 @@
 #!/bin/bash
 #
-# Generates AppIcon.icns for the Renamer macOS app bundle from docs/icon.png.
+# Generates AppIcon.icns for the Renamer macOS app bundle from docs/icon-macos.png.
 #
 set -euo pipefail
 
 RENAMER_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 REPO_ROOT="$(cd "$RENAMER_DIR/.." && pwd)"
-SOURCE="$REPO_ROOT/docs/icon.png"
+SOURCE="$REPO_ROOT/docs/icon-macos.png"
 ICONSET="$RENAMER_DIR/Resources/AppIcon.iconset"
 OUTPUT="$RENAMER_DIR/Resources/AppIcon.icns"
 

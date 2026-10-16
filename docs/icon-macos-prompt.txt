@@ -1,0 +1,15 @@
+Renamer macOS icon
+
+Generated with the built-in image_gen tool. Final source: docs/icon-macos.png.
+The previous artwork is preserved at docs/icon.png.
+
+Generation prompt:
+Use case: logo-brand.
+Asset type: production macOS app icon for a small native batch file renaming utility called Renamer.
+Create ONE square 1024x1024 icon, isolated on a genuinely transparent canvas outside the icon silhouette.
+Design: a beautiful, restrained macOS rounded-square tile in soft icy blue, gently lit, with generous normal macOS icon margins (tile from roughly 80 to 944 on each axis). On it, ONE simple pearly white document with one folded corner, nearly front-facing. Across the lower-middle of the document place ONE broad translucent blue filename selection capsule. Inside the selection, a very clear dark navy "Aa" followed by a slim insertion caret. "Aa" is the ONLY text. A tiny second offset paper edge behind the document may suggest batch files, but keep the silhouette simple and bold.
+Art direction: light, precise, quiet Apple desktop utility. Subtle physical depth, very soft shadows, satin surfaces and crisp optical edges. White, pale ice blue and one medium macOS blue accent. Composition centered and large enough to be recognizable in the Dock at 32 pixels.
+Avoid: pencil, magnifier, arrows, gears, dark or purple backgrounds, busy details, glowing neon, thick glass borders, extruded bevels, dramatic perspective, any surrounding mockup, text other than Aa, watermark. The entire icon must fit inside canvas and have transparent exterior corners.
+
+Cleanup prompt:
+Precise cleanup of this macOS app icon only. Preserve the exact icon design, colors, document, Aa letters, caret, composition, proportions and rounded blue tile. Remove ALL scattered white and cyan flecks, dust, ragged pixels, and halo outside the smooth rounded-square tile silhouette. Exterior must be perfectly clean fully transparent alpha, like a professionally exported icon. Keep a crisp smoothly antialiased tile edge. No extra marks, no white rectangle, no new objects. Return one square production icon on transparent background.

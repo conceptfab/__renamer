@@ -46,7 +46,7 @@ final class RenameSession: ObservableObject {
     @Published var presets: [Preset] = []
     @Published var selectedPresetID: UUID?
     @Published var rows: [RenameRow] = []
-    @Published var statusMessage: String = "Przeciągnij pliki lub użyj \"Otwórz…\""
+    @Published var statusMessage: String = "Dodaj pliki, aby rozpocząć"
     @Published var sortKey: PreviewSortKey = .oldName
     @Published var sortAscending: Bool = true
     @Published var isApplying: Bool = false
@@ -126,7 +126,7 @@ final class RenameSession: ObservableObject {
     func removeAll() {
         items = []
         rows = []
-        statusMessage = "Przeciągnij pliki lub użyj \"Otwórz…\""
+        statusMessage = "Dodaj pliki, aby rozpocząć"
     }
 
     func toggleSort(_ key: PreviewSortKey) {
@@ -282,7 +282,7 @@ final class RenameSession: ObservableObject {
     private func rebuildPlanNow() {
         guard !items.isEmpty else {
             rows = []
-            statusMessage = "Przeciągnij pliki lub użyj \"Otwórz…\""
+            statusMessage = "Dodaj pliki, aby rozpocząć"
             return
         }
 

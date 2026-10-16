@@ -46,6 +46,8 @@ done
 # --- version (from Info.plist) ----------------------------------------------
 INFO_PLIST="$RENAMER_DIR/Info.plist"
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$INFO_PLIST")"
+MIN_MACOS="$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$INFO_PLIST")"
+SDK_VERSION="$(xcrun --sdk macosx --show-sdk-version)"
 
 # --- optional: tests ---------------------------------------------------------
 if $RUN_TESTS; then
@@ -61,7 +63,12 @@ fi
 
 # --- build (release) ---------------------------------------------------------
 echo "==> Building Renamer $VERSION (release)"
-( cd "$RENAMER_DIR" && swift build -c release )
+# SwiftPM can stamp the deployment target as the SDK version. Pass both values
+# explicitly so AppKit adopts the current system appearance while retaining the
+# existing minimum macOS requirement.
+( cd "$RENAMER_DIR" && swift build -c release \
+    -Xlinker -platform_version -Xlinker macos \
+    -Xlinker "$MIN_MACOS" -Xlinker "$SDK_VERSION" )
 BIN="$(cd "$RENAMER_DIR" && swift build -c release --show-bin-path)/Renamer"
 
 if [[ ! -x "$BIN" ]]; then
@@ -71,7 +78,8 @@ fi
 
 # --- app icon ----------------------------------------------------------------
 ICON="$RENAMER_DIR/Resources/AppIcon.icns"
-if [[ ! -f "$ICON" ]]; then
+ICON_SOURCE="$REPO_ROOT/docs/icon-macos.png"
+if [[ ! -f "$ICON" || "$ICON_SOURCE" -nt "$ICON" ]]; then
     echo "==> Generating app icon"
     "$RENAMER_DIR/scripts/generate-icon.sh"
 fi

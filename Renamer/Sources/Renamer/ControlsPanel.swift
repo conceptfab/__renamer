@@ -3,147 +3,95 @@ import RenamerCore
 
 struct ControlsPanel: View {
     @EnvironmentObject private var session: RenameSession
-
     @State private var showNameDialog = false
     @State private var nameDialogText = ""
-    @State private var nameDialogMode: NameDialogMode = .saveNew
-
-    private enum NameDialogMode { case saveNew, rename }
+    @State private var isRenamingPreset = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 8) {
-                Text("Schemat")
-                    .frame(width: 90, alignment: .trailing)
+                Image(systemName: "slider.horizontal.3")
                     .foregroundStyle(.secondary)
-                Menu(selectedPresetName) {
-                    if session.presets.isEmpty {
-                        Text("Brak zapisanych schematów").disabled(true)
-                    }
-                    ForEach(session.presets) { preset in
-                        Button(preset.name) { session.applyPreset(preset) }
-                    }
-                }
-                .fixedSize()
-
-                Button("Zapisz jako…") {
-                    nameDialogMode = .saveNew
-                    nameDialogText = ""
-                    showNameDialog = true
-                }
-                Button("Zmień nazwę…") {
-                    nameDialogMode = .rename
-                    nameDialogText = selectedPreset?.name ?? ""
-                    showNameDialog = true
-                }
-                .disabled(selectedPreset == nil)
-                Button("Usuń") {
-                    if let id = session.selectedPresetID { session.deletePreset(id: id) }
-                }
-                .disabled(selectedPreset == nil)
-                Spacer()
+                Text("Reguły zmiany nazw")
+                    .font(.headline)
             }
+            .padding(.horizontal, 24)
+            .padding(.top, 22)
+            .padding(.bottom, 4)
 
-            HStack(alignment: .firstTextBaseline) {
-                Text("Nowa nazwa")
-                    .frame(width: 90, alignment: .trailing)
-                    .foregroundStyle(.secondary)
-                TextField("np. photo_{counter:001}.{ext}", text: $session.template)
-                    .textFieldStyle(.roundedBorder)
-                    .font(.system(.body, design: .monospaced))
-                    .onChange(of: session.template) { _ in session.onConfigChanged() }
-                VariableInsertMenu(includeGroups: false) { session.insertToken($0, into: \.template) }
-            }
-
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text("Szukaj")
-                        .frame(width: 90, alignment: .trailing)
-                        .foregroundStyle(.secondary)
-                    TextField("", text: $session.search)
-                        .textFieldStyle(.roundedBorder)
-                        .font(.system(.body, design: .monospaced))
-                        .onChange(of: session.search) { _ in session.onConfigChanged() }
-                    if session.isRegex {
-                        RegexHelperMenu { session.insertToken($0, into: \.search) }
-                    }
-                    Text("Zamień")
-                        .foregroundStyle(.secondary)
-                    TextField("", text: $session.replacement)
-                        .textFieldStyle(.roundedBorder)
-                        .font(.system(.body, design: .monospaced))
-                        .onChange(of: session.replacement) { _ in session.onConfigChanged() }
-                    VariableInsertMenu(includeGroups: session.isRegex) { session.insertToken($0, into: \.replacement) }
+            Form {
+                Section {
+                    presetControls
+                } header: {
+                    Text("Schemat")
                 }
-                if session.isRegex {
-                    Text(". dowolny znak · .* dowolny ciąg · \\d cyfra · (…) grupa · ^ początek · $ koniec")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                        .padding(.leading, 98)
+
+                Section {
+                    TemplateControls()
+                } header: {
+                    Text("Nowa nazwa")
+                } footer: {
+                    Text("Pozostaw puste, aby edytować obecną nazwę.")
+                }
+
+                Section("Znajdź i zamień") {
+                    FindReplaceControls()
+                }
+
+                Section("Formatowanie") {
+                    NameFormatControls()
                 }
             }
-
-            HStack(spacing: 16) {
-                Picker("Tryb", selection: $session.isRegex) {
-                    Text("Zwykły tekst").tag(false)
-                    Text("Regex").tag(true)
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .fixedSize()
-                .onChange(of: session.isRegex) { _ in session.onConfigChanged() }
-                Toggle("Rozróżniaj wielkość", isOn: $session.caseSensitive)
-                    .onChange(of: session.caseSensitive) { _ in session.onConfigChanged() }
-                Toggle("Usuń diakrytyki", isOn: $session.stripDiacritics)
-                    .onChange(of: session.stripDiacritics) { _ in session.onConfigChanged() }
-
-                Divider().frame(height: 16)
-
-                Text("Wielkość")
-                    .foregroundStyle(.secondary)
-                Picker("Nazwa", selection: $session.nameCase) {
-                    ForEach(CaseMode.allCases, id: \.self) { mode in
-                        Text(mode.label).tag(mode)
-                    }
-                }
-                .labelsHidden()
-                .frame(width: 150)
-                .onChange(of: session.nameCase) { _ in session.onConfigChanged() }
-
-                Toggle("Chroń rozszerzenie pliku", isOn: $session.lockExtension)
-                    .onChange(of: session.lockExtension) { _ in session.onConfigChanged() }
-
-                Text("Rozszerzenie")
-                    .foregroundStyle(session.lockExtension ? .tertiary : .secondary)
-                Picker("Rozszerzenie", selection: $session.extCase) {
-                    ForEach(CaseMode.allCases, id: \.self) { mode in
-                        Text(mode.label).tag(mode)
-                    }
-                }
-                .labelsHidden()
-                .frame(width: 150)
-                .disabled(session.lockExtension)
-                .onChange(of: session.extCase) { _ in session.onConfigChanged() }
-
-                Spacer()
-            }
+            .formStyle(.grouped)
+            .controlSize(.large)
+            .scrollContentBackground(.hidden)
         }
-        .padding(16)
-        .background(Color(nsColor: .windowBackgroundColor))
-        .alert(nameDialogMode == .saveNew ? "Zapisz schemat" : "Zmień nazwę schematu",
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .alert(isRenamingPreset ? "Zmień nazwę schematu" : "Zapisz schemat",
                isPresented: $showNameDialog) {
             TextField("Nazwa schematu", text: $nameDialogText)
             Button("Anuluj", role: .cancel) {}
-            Button("Zapisz") {
-                switch nameDialogMode {
-                case .saveNew:
-                    session.saveCurrentAsPreset(name: nameDialogText)
-                case .rename:
-                    if let id = session.selectedPresetID {
-                        session.renamePreset(id: id, to: nameDialogText)
-                    }
+            Button("Zapisz", action: savePreset)
+                .disabled(nameDialogText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        }
+    }
+
+    private var presetControls: some View {
+        HStack(spacing: 10) {
+            Menu {
+                if session.presets.isEmpty {
+                    Text("Brak zapisanych schematów").disabled(true)
                 }
+                ForEach(session.presets) { preset in
+                    Button(preset.name) { session.applyPreset(preset) }
+                }
+                Divider()
+                Button("Zapisz bieżące ustawienia…", action: beginSavingPreset)
+            } label: {
+                Text(selectedPreset?.name ?? "Własne ustawienia")
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .menuStyle(.borderlessButton)
+            .accessibilityLabel("Schemat zmiany nazw")
+
+            Menu {
+                Button("Zapisz jako nowy schemat…", action: beginSavingPreset)
+                Button("Zmień nazwę schematu…", action: beginRenamingPreset)
+                    .disabled(selectedPreset == nil)
+                Divider()
+                Button("Usuń schemat", role: .destructive) {
+                    if let id = session.selectedPresetID { session.deletePreset(id: id) }
+                }
+                .disabled(selectedPreset == nil)
+            } label: {
+                Label("Zarządzaj schematami", systemImage: "ellipsis.circle")
+                    .labelStyle(.iconOnly)
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .help("Zapisz lub edytuj schemat")
         }
     }
 
@@ -151,7 +99,23 @@ struct ControlsPanel: View {
         session.presets.first { $0.id == session.selectedPresetID }
     }
 
-    private var selectedPresetName: String {
-        selectedPreset?.name ?? "Wybierz schemat"
+    private func beginSavingPreset() {
+        isRenamingPreset = false
+        nameDialogText = ""
+        showNameDialog = true
+    }
+
+    private func beginRenamingPreset() {
+        isRenamingPreset = true
+        nameDialogText = selectedPreset?.name ?? ""
+        showNameDialog = true
+    }
+
+    private func savePreset() {
+        if isRenamingPreset, let id = session.selectedPresetID {
+            session.renamePreset(id: id, to: nameDialogText)
+        } else {
+            session.saveCurrentAsPreset(name: nameDialogText)
+        }
     }
 }

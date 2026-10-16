@@ -4,25 +4,27 @@ struct FooterBar: View {
     @EnvironmentObject private var session: RenameSession
 
     var body: some View {
-        HStack {
-            Text(session.statusMessage)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .truncationMode(.tail)
+        HStack(spacing: 8) {
+            if !session.items.isEmpty {
+                Image(systemName: session.errorCount > 0 ? "exclamationmark.circle" : "doc.on.doc")
+                    .foregroundStyle(.secondary)
+                Text(session.statusMessage)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            } else {
+                Text(session.statusMessage)
+                    .lineLimit(1)
+            }
             Spacer()
-            Button("Cofnij ostatnią") {
-                session.undoLast()
+            if !session.items.isEmpty {
+                Button("Wyczyść listę", action: session.removeAll)
+                    .buttonStyle(.borderless)
+                    .disabled(session.isApplying)
             }
-            .disabled(!session.canUndo)
-            Button("Zmień nazwy") {
-                session.requestApply()
-            }
-            .keyboardShortcut(.return, modifiers: .command)
-            .buttonStyle(.borderedProminent)
-            .disabled(!session.canApply)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .background(Color(nsColor: .windowBackgroundColor))
+        .font(.callout)
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, 24)
+        .padding(.vertical, 14)
     }
 }

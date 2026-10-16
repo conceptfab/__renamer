@@ -5,26 +5,55 @@ import UniformTypeIdentifiers
 struct DropZoneView: View {
     @EnvironmentObject private var session: RenameSession
     @State private var isTargeted = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(isTargeted ? Color.accentColor : Color.secondary.opacity(0.35),
-                              style: StrokeStyle(lineWidth: 2, dash: [8]))
-                .background(RoundedRectangle(cornerRadius: 12).fill(Color(nsColor: .controlBackgroundColor)))
-                .padding(24)
+        VStack(spacing: 24) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 24)
+                    .fill(Color.blue.opacity(0.08))
+                    .frame(width: 104, height: 104)
+                Image(systemName: "character.cursor.ibeam")
+                    .font(.system(size: 48, weight: .light))
+                    .foregroundStyle(.blue)
+            }
+            .accessibilityHidden(true)
 
-            VStack(spacing: 12) {
-                Image(systemName: "arrow.down.doc")
-                    .font(.system(size: 36))
+            VStack(spacing: 10) {
+                Text(isTargeted ? "Upuść pliki tutaj" : "Zmień nazwy plików")
+                    .font(.system(size: 27, weight: .semibold))
+                Text("Dodaj pliki, ustaw reguły i sprawdź nowe nazwy.\nWszystko w jednym miejscu.")
+                    .font(.system(size: 14))
                     .foregroundStyle(.secondary)
-                Text("Przeciągnij pliki tutaj")
-                    .font(.title3)
-                Button("Otwórz…") { presentOpenFilesPanel(into: session) }
-                    .keyboardShortcut("o", modifiers: .command)
+                    .lineSpacing(4)
+            }
+
+            Button {
+                presentOpenFilesPanel(into: session)
+            } label: {
+                Label("Wybierz pliki…", systemImage: "plus")
+                    .padding(.horizontal, 8)
+            }
+            .controlSize(.large)
+            .modifier(PrimaryActionStyle())
+
+            Text("lub przeciągnij je do tego okna")
+                .font(.callout)
+                .foregroundStyle(.tertiary)
+        }
+        .multilineTextAlignment(.center)
+        .padding(32)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(isTargeted ? Color.accentColor.opacity(0.05) : .clear)
+        .overlay {
+            if isTargeted {
+                RoundedRectangle(cornerRadius: 12)
+                    .strokeBorder(Color.accentColor.opacity(0.6), lineWidth: 2)
+                    .padding(12)
+                    .allowsHitTesting(false)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: isTargeted)
         .onDrop(of: [UTType.fileURL], isTargeted: $isTargeted) { providers in
             handleDrop(providers)
         }

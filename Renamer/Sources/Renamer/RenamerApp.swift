@@ -8,10 +8,11 @@ struct RenamerApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(session)
-                .frame(minWidth: 1120, minHeight: 520)
+                .frame(minWidth: 980, minHeight: 680)
         }
         .windowStyle(.titleBar)
-        .defaultSize(width: 1160, height: 640)
+        .windowToolbarStyle(.unified)
+        .defaultSize(width: 1180, height: 780)
         .commands {
             CommandGroup(replacing: .newItem) {}
         }
