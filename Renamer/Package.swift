@@ -13,6 +13,7 @@ let package = Package(
     ],
     targets: [
         .target(name: "RenamerFeature", dependencies: ["RenamerCore"], path: "Sources/RenamerFeature"),
-        .executableTarget(name: "Renamer", dependencies: ["RenamerFeature"], path: "Sources/Renamer")
+        .executableTarget(name: "Renamer", dependencies: ["RenamerFeature"], path: "Sources/Renamer"),
+        .testTarget(name: "RenamerFeatureTests", dependencies: ["RenamerFeature"], path: "Tests/RenamerFeatureTests")
     ]
 )

@@ -111,6 +111,20 @@ public final class RenameSession: ObservableObject {
         addURLs(urls)
     }
 
+    /// URLs of the files in the session, in the order they were added.
+    public var fileURLs: [URL] { items.map(\.url) }
+
+    /// Number of rows in the rename preview (filled shortly after files or rules change).
+    public var previewRowCount: Int { rows.count }
+
+    /// Applies a saved preset by id; returns false when there is no such preset.
+    @discardableResult
+    public func applyPreset(id: UUID) -> Bool {
+        guard let preset = presets.first(where: { $0.id == id }) else { return false }
+        applyPreset(preset)
+        return true
+    }
+
     func addURLs(_ urls: [URL]) {
         let files = urls.filter { url in
             var isDir: ObjCBool = false
