@@ -1,11 +1,13 @@
 import SwiftUI
 
-struct ContentView: View {
+public struct ContentView: View {
     @EnvironmentObject private var session: RenameSession
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var showInspector = true
 
-    var body: some View {
+    public init() {}
+
+    public var body: some View {
         workspace
             .navigationTitle("Renamer")
             .toolbar {

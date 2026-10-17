@@ -32,7 +32,7 @@ struct FailureReport: Identifiable, Equatable {
 }
 
 @MainActor
-final class RenameSession: ObservableObject {
+public final class RenameSession: ObservableObject {
     @Published var items: [FileItem] = []
     @Published var template: String = ""
     @Published var search: String = ""
@@ -56,8 +56,8 @@ final class RenameSession: ObservableObject {
     @Published var failureReport: FailureReport?
 
     private let engine = RenameEngine()
-    private let settings = SettingsStore()
-    private let presetStore = PresetStore()
+    private let settings: SettingsStore
+    private let presetStore: PresetStore
     private var undoBatch: UndoBatch?
     private var debounceTask: Task<Void, Never>?
     private var bannerTask: Task<Void, Never>?
@@ -66,7 +66,9 @@ final class RenameSession: ObservableObject {
     var warningCount: Int { rows.filter { $0.status == .warning }.count }
     var canApply: Bool { !items.isEmpty && errorCount == 0 && !isApplying }
 
-    init() {
+    public init(defaults: UserDefaults = .standard) {
+        settings = SettingsStore(defaults: defaults)
+        presetStore = PresetStore(defaults: defaults)
         loadSettings()
         presets = presetStore.load()
         rebuildPlan()
@@ -102,6 +104,11 @@ final class RenameSession: ObservableObject {
     func onConfigChanged() {
         persistSettings()
         rebuildPlan()
+    }
+
+    /// Adds files exactly as a drop onto the drop zone does (directories ignored, duplicates skipped).
+    public func add(urls: [URL]) {
+        addURLs(urls)
     }
 
     func addURLs(_ urls: [URL]) {

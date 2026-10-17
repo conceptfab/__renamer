@@ -3,8 +3,12 @@ import RenamerCore
 
 /// Persists the user's presets as JSON in UserDefaults.
 struct PresetStore {
-    private let defaults = UserDefaults.standard
+    private let defaults: UserDefaults
     private let key = "renamer.presets"
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+    }
 
     func load() -> [Preset] {
         guard let data = defaults.data(forKey: key),

@@ -14,7 +14,11 @@ struct SettingsStore {
         var lockExtension: Bool = true
     }
 
-    private let defaults = UserDefaults.standard
+    private let defaults: UserDefaults
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+    }
 
     private enum Key {
         static let template = "renamer.template"

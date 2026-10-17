@@ -1,4 +1,5 @@
 import SwiftUI
+import RenamerFeature
 
 @main
 struct RenamerApp: App {

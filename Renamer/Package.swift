@@ -4,14 +4,15 @@ import PackageDescription
 let package = Package(
     name: "Renamer",
     platforms: [.macOS(.v13)],
+    products: [
+        .library(name: "RenamerFeature", targets: ["RenamerFeature"]),
+        .executable(name: "Renamer", targets: ["Renamer"])
+    ],
     dependencies: [
         .package(path: "../RenamerCore")
     ],
     targets: [
-        .executableTarget(
-            name: "Renamer",
-            dependencies: ["RenamerCore"],
-            path: "Sources/Renamer"
-        )
+        .target(name: "RenamerFeature", dependencies: ["RenamerCore"], path: "Sources/RenamerFeature"),
+        .executableTarget(name: "Renamer", dependencies: ["RenamerFeature"], path: "Sources/Renamer")
     ]
 )
