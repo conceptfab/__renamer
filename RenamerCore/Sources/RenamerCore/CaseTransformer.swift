@@ -1,6 +1,6 @@
 import Foundation
 
-public enum CaseMode: String, Equatable, CaseIterable, Codable {
+public enum CaseMode: String, Equatable, CaseIterable, Codable, Sendable {
     case none, lower, upper, title
 }
 
@@ -23,7 +23,9 @@ public enum CaseTransformer {
         var atBoundary = true
         for ch in s {
             if ch.isLetter || ch.isNumber {
-                result.append(atBoundary ? Character(ch.uppercased()) : ch)
+                // uppercased() may yield several characters ("ß" -> "SS", "ŉ" -> "ʼN"),
+                // so append it as a String; Character(_:) would trap.
+                result += atBoundary ? ch.uppercased() : String(ch)
                 atBoundary = false
             } else {
                 result.append(ch)

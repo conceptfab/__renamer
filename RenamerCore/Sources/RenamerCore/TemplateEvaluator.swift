@@ -3,6 +3,8 @@ import Foundation
 public struct TemplateEvaluator {
     private let locale: Locale
     private let timeZone: TimeZone
+    /// One DateFormatter per pattern, shared by every file of a plan.
+    private let formatters = FormatterCache()
 
     public init(locale: Locale = Locale(identifier: "en_US_POSIX"),
                 timeZone: TimeZone = .current) {
@@ -49,10 +51,25 @@ public struct TemplateEvaluator {
     }
 
     private func formattedDate(_ date: Date, pattern: String) -> String {
+        formatters.formatter(pattern: pattern, locale: locale, timeZone: timeZone).string(from: date)
+    }
+}
+
+/// Creating a DateFormatter is expensive; cache them by pattern. Locked because the
+/// evaluator may be used from a background planning task.
+private final class FormatterCache: @unchecked Sendable {
+    private let lock = NSLock()
+    private var byPattern: [String: DateFormatter] = [:]
+
+    func formatter(pattern: String, locale: Locale, timeZone: TimeZone) -> DateFormatter {
+        lock.lock()
+        defer { lock.unlock() }
+        if let cached = byPattern[pattern] { return cached }
         let f = DateFormatter()
         f.locale = locale
         f.timeZone = timeZone
         f.dateFormat = pattern
-        return f.string(from: date)
+        byPattern[pattern] = f
+        return f
     }
 }

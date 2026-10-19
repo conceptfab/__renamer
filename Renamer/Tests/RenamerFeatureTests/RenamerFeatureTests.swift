@@ -211,6 +211,122 @@ final class RenamerFeatureTests: XCTestCase {
         XCTAssertTrue(previewReady)
     }
 
+    // MARK: Audit regressions
+
+    private func names(in dir: URL) throws -> [String] {
+        try FileManager.default.contentsOfDirectory(atPath: dir.path).sorted()
+    }
+
+    /// The drop/open-panel path reads the disk off the main actor and keeps arrival order.
+    func testAddURLsFromDropLoadsInTheBackgroundInOrder() async throws {
+        let dir = try makeTempDir()
+        let first = try makeFiles(["b.txt", "a.txt"], in: dir)
+        let second = try makeFiles(["c.txt"], in: dir)
+        let session = RenameSession(defaults: makeSuite())
+        session.addURLs(first)
+        session.addURLs(second + first)
+        let loaded = await waitFor { session.fileURLs.count == 3 }
+        XCTAssertTrue(loaded)
+        XCTAssertEqual(session.fileURLs.map(\.lastPathComponent), ["b.txt", "a.txt", "c.txt"])
+    }
+
+    /// Apply right after an edit (debounce still pending) uses the new rules, and the
+    /// list then follows the files to their new names; undo brings both back.
+    func testApplyUsesTheLatestRulesFollowsRenamedFilesAndUndoes() async throws {
+        let dir = try makeTempDir()
+        let files = try makeFiles(["a.txt", "b.txt"], in: dir)
+        let session = RenameSession(defaults: makeSuite())
+        session.add(urls: files)
+        let planned = await waitFor { session.previewRowCount == 2 }
+        XCTAssertTrue(planned)
+
+        session.template = "{name}_new"
+        session.onConfigChanged()
+        session.requestApply()
+        XCTAssertTrue(session.isApplying)
+        session.requestApply()   // double apply is ignored while the first runs
+        let applied = await waitFor { !session.isApplying }
+        XCTAssertTrue(applied)
+        XCTAssertEqual(try names(in: dir), ["a_new.txt", "b_new.txt"])
+        XCTAssertEqual(session.fileURLs.map(\.lastPathComponent), ["a_new.txt", "b_new.txt"])
+        XCTAssertTrue(session.canUndo)
+
+        session.undoLast()
+        let undone = await waitFor { !session.isApplying && !session.canUndo }
+        XCTAssertTrue(undone)
+        XCTAssertEqual(try names(in: dir), ["a.txt", "b.txt"])
+        XCTAssertEqual(session.fileURLs.map(\.lastPathComponent), ["a.txt", "b.txt"])
+    }
+
+    /// A file that cannot go back is reported and kept for a retry; the others are undone.
+    func testUndoContinuesPastAFailedFile() async throws {
+        let dir = try makeTempDir()
+        let files = try makeFiles(["a.txt", "b.txt"], in: dir)
+        let session = RenameSession(defaults: makeSuite())
+        session.add(urls: files)
+        session.template = "{name}_x"
+        session.onConfigChanged()
+        session.requestApply()
+        let applied = await waitFor { !session.isApplying && session.canUndo }
+        XCTAssertTrue(applied)
+
+        try Data("blocker".utf8).write(to: dir.appendingPathComponent("a.txt"))
+        session.undoLast()
+        let undone = await waitFor { !session.isApplying && session.failureReport != nil }
+        XCTAssertTrue(undone)
+        XCTAssertEqual(try names(in: dir), ["a.txt", "a_x.txt", "b.txt"])
+        XCTAssertEqual(session.failureReport?.failures.count, 1)
+        XCTAssertTrue(session.canUndo)
+
+        try FileManager.default.removeItem(at: dir.appendingPathComponent("a.txt"))
+        session.failureReport = nil
+        session.undoLast()
+        let retried = await waitFor { !session.isApplying && !session.canUndo }
+        XCTAssertTrue(retried)
+        XCTAssertEqual(try names(in: dir), ["a.txt", "b.txt"])
+    }
+
+    /// A runaway regex is cut off by the plan's time budget, off the main actor.
+    func testCatastrophicRegexDoesNotBlockTheMainActor() async throws {
+        let dir = try makeTempDir()
+        let files = try makeFiles([String(repeating: "a", count: 40) + "!.txt"], in: dir)
+        let session = RenameSession(defaults: makeSuite())
+        session.add(urls: files)
+        session.isRegex = true
+        session.search = "(a+)+b"
+        session.onConfigChanged()
+
+        var maxGap: TimeInterval = 0
+        var last = Date()
+        let flagged = await waitFor({
+            let now = Date()
+            maxGap = max(maxGap, now.timeIntervalSince(last))
+            last = now
+            return session.rows.first?.message == "Wyrażenie regularne zbyt wolne"
+        }, timeout: 15)
+        XCTAssertTrue(flagged)
+        XCTAssertLessThan(maxGap, 0.5)
+        XCTAssertFalse(session.canApply)
+    }
+
+    /// Two windows share the preset store; neither may drop the other's presets.
+    func testPresetsFromOtherWindowsAreKept() {
+        let suite = makeSuite()
+        let one = RenameSession(defaults: suite)
+        let two = RenameSession(defaults: suite)
+        one.saveCurrentAsPreset(name: "A")
+        two.saveCurrentAsPreset(name: "B")
+        XCTAssertEqual(PresetStore(defaults: suite).load().map(\.name), ["A", "B"])
+        XCTAssertEqual(two.presets.map(\.name), ["A", "B"])
+
+        let a = two.presets[0].id
+        let b = two.presets[1].id
+        two.deletePreset(id: a)
+        one.renamePreset(id: b, to: "C")
+        XCTAssertEqual(PresetStore(defaults: suite).load().map(\.name), ["C"])
+        XCTAssertEqual(one.presets.map(\.name), ["C"])
+    }
+
     func testAddURLsWithNothingUsable() {
         let session = RenameSession(defaults: makeSuite())
         session.add(urls: [])

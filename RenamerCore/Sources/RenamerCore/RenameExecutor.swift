@@ -1,7 +1,7 @@
 import Foundation
 
 /// One intended rename, or one recorded physical move (reused for both).
-public struct Move: Equatable {
+public struct Move: Equatable, Sendable {
     public let from: URL
     public let to: URL
     public init(from: URL, to: URL) {
@@ -10,27 +10,117 @@ public struct Move: Equatable {
     }
 }
 
-public struct MoveFailure: Equatable {
+public struct MoveFailure: Equatable, Sendable {
     public let move: Move
     public let message: String
 }
 
-/// Records the physical moves performed, in order, so they can be reversed.
-public struct UndoBatch {
-    public let moves: [Move]
+/// One renamed file as undo sees it.
+public struct UndoEntry: Equatable, Sendable {
+    /// Name before the rename.
+    public let original: URL
+    /// Where the file is now: its new name, or a hidden temp name if a restore failed.
+    public let current: URL
+}
+
+/// Records what a rename did so it can be reversed, file by file.
+/// `@unchecked`: FileManager is not marked Sendable, but its move/trash calls are
+/// thread-safe (no delegate is used), and undo runs off the main actor.
+public struct UndoBatch: @unchecked Sendable {
+    public let entries: [UndoEntry]
+    /// Items moved to the Trash to make room: `from` = where they were, `to` = their URL in the Trash.
+    public let trashed: [Move]
     private let fileManager: FileManager
 
-    public init(moves: [Move], fileManager: FileManager = .default) {
-        self.moves = moves
+    public init(entries: [UndoEntry], trashed: [Move] = [], fileManager: FileManager = .default) {
+        self.entries = entries
+        self.trashed = trashed
         self.fileManager = fileManager
     }
 
-    /// Reverse every recorded move, last performed first.
-    public func undo() throws {
-        for move in moves.reversed() {
-            try fileManager.moveItem(at: move.to, to: move.from)
+    /// Each file as original -> current location.
+    public var moves: [Move] { entries.map { Move(from: $0.original, to: $0.current) } }
+    public var isEmpty: Bool { entries.isEmpty && trashed.isEmpty }
+
+    /// Best-effort undo: every file is reversed on its own and a failure does not stop
+    /// the rest. A file that cannot get its old name back stays at its current visible
+    /// name; it and any un-restored trashed item are kept in `remaining` for a retry.
+    public func undo() -> UndoOutcome {
+        var failures: [MoveFailure] = []
+        var remaining: [UndoEntry] = []
+        var restored: [Move] = []
+
+        // Phase 1: move every file off its new name to a temp first, so cycles (a <-> b) resolve.
+        var staged: [(entry: UndoEntry, temp: URL)] = []
+        for entry in entries.reversed() {
+            if RenameExecutor.isTempName(entry.current.lastPathComponent) {
+                staged.append((entry, entry.current))
+                continue
+            }
+            let temp = entry.current.deletingLastPathComponent()
+                .appendingPathComponent(RenameExecutor.tempName(for: entry.original.lastPathComponent))
+            do {
+                try fileManager.moveItem(at: entry.current, to: temp)
+                staged.append((entry, temp))
+            } catch {
+                failures.append(MoveFailure(move: Move(from: entry.current, to: entry.original),
+                                            message: error.localizedDescription))
+                remaining.append(entry)
+            }
         }
+
+        // Phase 2: temp -> original name. On failure go back to the visible name.
+        for (entry, temp) in staged {
+            let message: String
+            if fileManager.fileExists(atPath: entry.original.path) {
+                message = "Cel istnieje"
+            } else {
+                do {
+                    try fileManager.moveItem(at: temp, to: entry.original)
+                    restored.append(Move(from: entry.current, to: entry.original))
+                    continue
+                } catch {
+                    message = error.localizedDescription
+                }
+            }
+            failures.append(MoveFailure(move: Move(from: entry.current, to: entry.original), message: message))
+            if temp != entry.current, (try? fileManager.moveItem(at: temp, to: entry.current)) != nil {
+                remaining.append(entry)
+            } else {
+                remaining.append(UndoEntry(original: entry.original, current: temp))
+            }
+        }
+
+        // Phase 3: bring trashed items back once their place is free again.
+        var remainingTrashed: [Move] = []
+        for item in trashed.reversed() {
+            if fileManager.fileExists(atPath: item.from.path) {
+                failures.append(MoveFailure(move: Move(from: item.to, to: item.from), message: "Cel istnieje"))
+                remainingTrashed.append(item)
+                continue
+            }
+            do {
+                try fileManager.moveItem(at: item.to, to: item.from)
+            } catch {
+                failures.append(MoveFailure(move: Move(from: item.to, to: item.from),
+                                            message: error.localizedDescription))
+                remainingTrashed.append(item)
+            }
+        }
+
+        return UndoOutcome(restored: restored, failures: failures,
+                           remaining: UndoBatch(entries: remaining.reversed(),
+                                                trashed: remainingTrashed.reversed(),
+                                                fileManager: fileManager))
     }
+}
+
+public struct UndoOutcome: Sendable {
+    /// Files that got their old name back: `from` = name before undo, `to` = restored name.
+    public let restored: [Move]
+    public let failures: [MoveFailure]
+    /// What could not be undone; undo it again to retry.
+    public let remaining: UndoBatch
 }
 
 public struct ExecutionResult {
@@ -41,74 +131,112 @@ public struct ExecutionResult {
 }
 
 public struct RenameExecutor {
+    static let tempPrefix = ".renamer-tmp-"
+
     private let fileManager: FileManager
     public init(fileManager: FileManager = .default) {
         self.fileManager = fileManager
+    }
+
+    /// Hidden temp name that still carries the original name (truncated to fit 255
+    /// bytes), so a file stranded by a crash mid-batch can be recovered by hand.
+    static func tempName(for original: String) -> String {
+        let head = tempPrefix + UUID().uuidString + "-"
+        var budget = CollisionDetector.maxNameBytes - head.utf8.count
+        var kept = ""
+        for ch in original {
+            let size = String(ch).utf8.count
+            guard size <= budget else { break }
+            kept.append(ch)
+            budget -= size
+        }
+        return head + kept
+    }
+
+    static func isTempName(_ name: String) -> Bool { name.hasPrefix(tempPrefix) }
+
+    /// A rename must stay in the source's folder under a valid name ("dir/.." would
+    /// otherwise point at the parent folder).
+    static func staysInDirectory(_ move: Move) -> Bool {
+        guard CollisionDetector.isValidName(move.to.lastPathComponent) else { return false }
+        return move.to.standardizedFileURL.deletingLastPathComponent().path
+            == move.from.standardizedFileURL.deletingLastPathComponent().path
     }
 
     /// Two-phase rename: sources -> temp, then temp -> final target.
     /// On any phase-2 failure the temp is restored to its original name so no
     /// file is ever left orphaned under a hidden temporary name.
     public func execute(_ moves: [Move], overwrite: Bool) throws -> ExecutionResult {
-        var performed: [Move] = []
+        var entries: [UndoEntry] = []
+        var trashed: [Move] = []
         var failures: [MoveFailure] = []
         var successfulRenames: [Move] = []
+        // Sources that could not be moved aside; never trash one of them.
+        var stuckSources = Set<String>()
 
         // Phase 1: move each source to a unique temp name in its own directory.
         var temps: [(temp: URL, final: URL, original: URL)] = []
         for move in moves {
+            guard Self.staysInDirectory(move) else {
+                failures.append(MoveFailure(move: move, message: "Niedozwolona nazwa"))
+                stuckSources.insert(move.from.path.lowercased())
+                continue
+            }
             let temp = move.from.deletingLastPathComponent()
-                .appendingPathComponent(".renamer-tmp-" + UUID().uuidString)
+                .appendingPathComponent(Self.tempName(for: move.from.lastPathComponent))
             do {
                 try fileManager.moveItem(at: move.from, to: temp)
-                performed.append(Move(from: move.from, to: temp))
                 temps.append((temp: temp, final: move.to, original: move.from))
             } catch {
                 failures.append(MoveFailure(move: move, message: error.localizedDescription))
+                stuckSources.insert(move.from.path.lowercased())
             }
         }
 
         // Phase 2: move each temp to its final target.
         for entry in temps {
+            let move = Move(from: entry.original, to: entry.final)
             do {
-                if fileManager.fileExists(atPath: entry.final.path) {
-                    if overwrite {
-                        try fileManager.trashItem(at: entry.final, resultingItemURL: nil)
-                    } else {
-                        restore(entry, &performed)
-                        failures.append(MoveFailure(
-                            move: Move(from: entry.original, to: entry.final),
-                            message: "Cel istnieje"))
+                var isDir: ObjCBool = false
+                if fileManager.fileExists(atPath: entry.final.path, isDirectory: &isDir) {
+                    // Folders are never trashed; neither are files of this batch.
+                    let message: String? = isDir.boolValue ? "Istnieje folder o tej nazwie"
+                        : (!overwrite || stuckSources.contains(entry.final.path.lowercased())) ? "Cel istnieje"
+                        : nil
+                    if let message {
+                        restore(entry, &entries)
+                        failures.append(MoveFailure(move: move, message: message))
                         continue
+                    }
+                    var trashURL: NSURL?
+                    try fileManager.trashItem(at: entry.final, resultingItemURL: &trashURL)
+                    if let trashURL = trashURL as URL? {
+                        trashed.append(Move(from: entry.final, to: trashURL))
                     }
                 }
                 try fileManager.moveItem(at: entry.temp, to: entry.final)
-                performed.append(Move(from: entry.temp, to: entry.final))
-                successfulRenames.append(Move(from: entry.original, to: entry.final))
+                entries.append(UndoEntry(original: entry.original, current: entry.final))
+                successfulRenames.append(move)
             } catch {
-                restore(entry, &performed)
-                failures.append(MoveFailure(
-                    move: Move(from: entry.original, to: entry.final),
-                    message: error.localizedDescription))
+                restore(entry, &entries)
+                failures.append(MoveFailure(move: move, message: error.localizedDescription))
             }
         }
 
-        return ExecutionResult(undo: UndoBatch(moves: performed, fileManager: fileManager),
+        return ExecutionResult(undo: UndoBatch(entries: entries, trashed: trashed, fileManager: fileManager),
                                failures: failures,
                                successfulRenames: successfulRenames)
     }
 
     /// Reverse a phase-1 move so the file returns to its original name.
     /// Best-effort: if the reversal itself fails, the file stays at its temp
-    /// name and the source->temp move is left in `performed` so a later undo
-    /// can still recover it.
+    /// name and is recorded in `entries` so a later undo can still recover it.
     private func restore(_ entry: (temp: URL, final: URL, original: URL),
-                         _ performed: inout [Move]) {
+                         _ entries: inout [UndoEntry]) {
         do {
             try fileManager.moveItem(at: entry.temp, to: entry.original)
-            performed.removeAll { $0 == Move(from: entry.original, to: entry.temp) }
         } catch {
-            // Leave the temp in place; `performed` retains the source->temp move.
+            entries.append(UndoEntry(original: entry.original, current: entry.temp))
         }
     }
 }

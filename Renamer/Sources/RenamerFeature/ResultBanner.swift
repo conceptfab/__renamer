@@ -13,7 +13,7 @@ struct ResultBanner: View {
             Spacer()
             Button("Cofnij") { session.undoLast() }
                 .buttonStyle(.borderless)
-                .disabled(!session.canUndo)
+                .disabled(!session.canUndo || session.isApplying)
             Button {
                 session.dismissBanner()
             } label: {

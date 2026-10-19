@@ -1,10 +1,10 @@
 import Foundation
 
-public enum RowStatus: Equatable {
+public enum RowStatus: Equatable, Sendable {
     case ok, warning, error
 }
 
-public struct RenameRow: Equatable {
+public struct RenameRow: Equatable, Sendable {
     public let item: FileItem
     public let proposedName: String
     public var status: RowStatus

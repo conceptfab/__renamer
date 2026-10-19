@@ -2,7 +2,7 @@ import Foundation
 
 /// A file to be renamed. Holds only what the engine needs so evaluation is
 /// pure and does not touch disk.
-public struct FileItem: Equatable {
+public struct FileItem: Equatable, Sendable {
     public let url: URL
     public let modificationDate: Date
 

@@ -17,7 +17,7 @@ public struct ContentView: View {
                     Button(action: session.undoLast) {
                         Label("Cofnij zmianę nazw", systemImage: "arrow.uturn.backward")
                     }
-                    .disabled(!session.canUndo)
+                    .disabled(!session.canUndo || session.isApplying)
                     .help("Cofnij ostatnią zmianę nazw")
 
                     Button {

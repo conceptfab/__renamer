@@ -61,7 +61,7 @@ final class RenameExecutorTests: XCTestCase {
             Move(from: b, to: dir.appendingPathComponent("y.txt")),
         ]
         let result = try RenameExecutor().execute(moves, overwrite: false)
-        try result.undo.undo()
+        XCTAssertTrue(result.undo.undo().failures.isEmpty)
         XCTAssertEqual(read("a.txt"), "A")
         XCTAssertEqual(read("b.txt"), "B")
         XCTAssertNil(read("x.txt"))

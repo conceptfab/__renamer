@@ -8,6 +8,9 @@ public enum CounterBase: Equatable {
 }
 
 public struct CounterSpec: Equatable {
+    /// Widest zero padding accepted; a file name cannot be longer than 255 bytes anyway.
+    public static let maxDigits = 255
+
     public var start: Int
     public var step: Int
     public var digits: Int
@@ -25,6 +28,9 @@ public struct CounterSpec: Equatable {
 
         // Compact form: a run of digits -> digit width.
         if arg.allSatisfy({ $0.isNumber }) {
+            guard arg.count <= maxDigits else {
+                throw TemplateError.badArgument(token: "counter", argument: arg)
+            }
             return CounterSpec(digits: arg.count)
         }
 
@@ -44,7 +50,7 @@ public struct CounterSpec: Equatable {
                 guard let v = Int(value) else { throw TemplateError.badArgument(token: "counter", argument: value) }
                 spec.step = v
             case "digits":
-                guard let v = Int(value), v >= 0 else { throw TemplateError.badArgument(token: "counter", argument: value) }
+                guard let v = Int(value), v >= 0, v <= maxDigits else { throw TemplateError.badArgument(token: "counter", argument: value) }
                 spec.digits = v
             case "base":
                 switch value {
@@ -60,12 +66,19 @@ public struct CounterSpec: Equatable {
         return spec
     }
 
-    public func format(forIndex index: Int) -> String {
-        let value = start + index * step
+    /// Throws `badArgument` when `start + index * step` does not fit in an Int.
+    public func format(forIndex index: Int) throws -> String {
+        let (offset, mulOverflow) = index.multipliedReportingOverflow(by: step)
+        let (value, addOverflow) = start.addingReportingOverflow(offset)
+        guard !mulOverflow, !addOverflow else {
+            throw TemplateError.badArgument(token: "counter", argument: "start=\(start),step=\(step)")
+        }
         let negative = value < 0
-        var body = String(abs(value), radix: base.radix, uppercase: base.uppercase)
-        if body.count < digits {
-            body = String(repeating: "0", count: digits - body.count) + body
+        // `magnitude` (not abs) so Int.min does not trap.
+        var body = String(value.magnitude, radix: base.radix, uppercase: base.uppercase)
+        let width = min(digits, Self.maxDigits)
+        if body.count < width {
+            body = String(repeating: "0", count: width - body.count) + body
         }
         return negative ? "-" + body : body
     }
