@@ -93,6 +93,14 @@ final class AuditRegressionTests: XCTestCase {
         XCTAssertEqual(rows.map(\.proposedName), ["1_.txt", "2_.txt"])
     }
 
+    func test_regexReplacementTokenValuesAreLiteral() {
+        // "$1" inside the file name must not expand; the user's own "$1" still does.
+        let rows = PlanBuilder().build(items: [item("/h/Faktury $1 x.pdf")],
+                                       config: config(search: "^(F)", replacement: "{name}-$1", isRegex: true),
+                                       probe: Probe())
+        XCTAssertEqual(rows.map(\.proposedName), ["Faktury $1 x-Faktury $1 x.pdf"])
+    }
+
     func test_invalidRegexMarksAllRows() {
         let rows = PlanBuilder().build(items: [item("/h/a.txt"), item("/h/b.txt")],
                                        config: config(search: "(", isRegex: true), probe: Probe())
@@ -112,6 +120,6 @@ final class AuditRegressionTests: XCTestCase {
 
     func test_findReplaceRegexStillSupportsTemplates() throws {
         let fr = FindReplace(search: "(\\w)(\\w)", replacement: "$2$1", isRegex: true, caseSensitive: true)
-        XCTAssertEqual(try fr.apply(to: "abcd e"), "badc e")
+        XCTAssertEqual(try fr.compiled().apply(to: "abcd e", replacement: fr.replacement), "badc e")
     }
 }

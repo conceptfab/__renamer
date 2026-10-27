@@ -4,6 +4,7 @@ import XCTest
 final class RenameExecutorSafetyTests: XCTestCase {
     private var root: URL!
     private var dir: URL!
+    private var locked: [URL] = []
 
     override func setUpWithError() throws {
         root = URL(fileURLWithPath: NSTemporaryDirectory())
@@ -12,6 +13,7 @@ final class RenameExecutorSafetyTests: XCTestCase {
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
     }
     override func tearDownWithError() throws {
+        for url in locked { try? FileManager.default.setAttributes([.immutable: false], ofItemAtPath: url.path) }
         try? FileManager.default.removeItem(at: root)
     }
     private func write(_ name: String, _ contents: String) throws -> URL {
@@ -21,6 +23,10 @@ final class RenameExecutorSafetyTests: XCTestCase {
     }
     private func read(_ name: String) -> String? {
         try? String(contentsOf: dir.appendingPathComponent(name), encoding: .utf8)
+    }
+    private func lock(_ url: URL) throws {
+        try FileManager.default.setAttributes([.immutable: true], ofItemAtPath: url.path)
+        locked.append(url)
     }
     private func names() throws -> [String] {
         try FileManager.default.contentsOfDirectory(atPath: dir.path).sorted()
@@ -82,7 +88,7 @@ final class RenameExecutorSafetyTests: XCTestCase {
         XCTAssertEqual(read("x.txt"), "A", "a file that cannot go back stays at its visible name")
         XCTAssertEqual(read("a.txt"), "BLOCKER")
         XCTAssertFalse(try names().contains { $0.hasPrefix(".renamer-") })
-        XCTAssertEqual(first.remaining.moves.count, 1)
+        XCTAssertEqual(first.remaining.entries.count, 1)
 
         // Retrying only replays what is left.
         try FileManager.default.removeItem(at: dir.appendingPathComponent("a.txt"))
@@ -112,8 +118,49 @@ final class RenameExecutorSafetyTests: XCTestCase {
         XCTAssertTrue(short.hasPrefix(".renamer-tmp-"))
         XCTAssertTrue(short.hasSuffix("-zdjęcie.jpg"))
         let long = RenameExecutor.tempName(for: String(repeating: "ż", count: 127) + ".j")
-        XCTAssertLessThanOrEqual(long.utf8.count, 255)
+        XCTAssertTrue(CollisionDetector.fitsLength(long))
         XCTAssertTrue(long.hasPrefix(".renamer-tmp-"))
         XCTAssertTrue(long.contains("żżż"))
+    }
+
+    func test_neverTrashesAFileItPlacedItself() throws {
+        // APFS sees strasse.txt and straße.txt as one name.
+        let x = try write("x.txt", "X")
+        let y = try write("y.txt", "Y")
+        let result = try RenameExecutor().execute([
+            Move(from: x, to: dir.appendingPathComponent("strasse.txt")),
+            Move(from: y, to: dir.appendingPathComponent("straße.txt")),
+        ], overwrite: true)
+        XCTAssertTrue(result.undo.trashed.isEmpty)
+        XCTAssertEqual(result.failures.map(\.message), ["Cel istnieje"])
+        XCTAssertEqual(read("strasse.txt"), "X")
+        XCTAssertEqual(read("y.txt"), "Y")
+    }
+
+    func test_chainFailureNamesTheStrandedTempFile() throws {
+        let a = try write("a.txt", "A")
+        let b = try write("b.txt", "B")
+        let c = try write("c.txt", "C")
+        try lock(c)
+        let result = try RenameExecutor().execute([Move(from: a, to: b), Move(from: b, to: c)], overwrite: true)
+        XCTAssertEqual(read("b.txt"), "A")
+        XCTAssertEqual(read("c.txt"), "C")
+        let temp = try XCTUnwrap(try names().first { RenameExecutor.isTempName($0) })
+        XCTAssertEqual(read(temp), "B")
+        XCTAssertEqual(result.failures.count, 1)
+        XCTAssertTrue(result.failures[0].message.contains(temp), result.failures[0].message)
+        XCTAssertTrue(result.undo.entries.contains { $0.current.lastPathComponent == temp })
+    }
+
+    func test_privatePathsAreAccepted() throws {
+        // standardizedFileURL drops "/private" only from paths that exist.
+        try XCTSkipUnless(dir.path.hasPrefix("/var/") || dir.path.hasPrefix("/tmp/"))
+        let privateDir = URL(fileURLWithPath: "/private" + dir.path)
+        _ = try write("a.txt", "A")
+        let result = try RenameExecutor().execute([Move(from: privateDir.appendingPathComponent("a.txt"),
+                                                        to: privateDir.appendingPathComponent("b.txt"))],
+                                                  overwrite: false)
+        XCTAssertTrue(result.failures.isEmpty)
+        XCTAssertEqual(read("b.txt"), "A")
     }
 }

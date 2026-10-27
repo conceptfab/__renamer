@@ -38,8 +38,6 @@ public struct UndoBatch: @unchecked Sendable {
         self.fileManager = fileManager
     }
 
-    /// Each file as original -> current location.
-    public var moves: [Move] { entries.map { Move(from: $0.original, to: $0.current) } }
     public var isEmpty: Bool { entries.isEmpty && trashed.isEmpty }
 
     /// Best-effort undo: every file is reversed on its own and a failure does not stop
@@ -138,29 +136,26 @@ public struct RenameExecutor {
         self.fileManager = fileManager
     }
 
-    /// Hidden temp name that still carries the original name (truncated to fit 255
-    /// bytes), so a file stranded by a crash mid-batch can be recovered by hand.
+    /// Hidden temp name that still carries the original name (truncated to fit the
+    /// name limit), so a file stranded by a crash mid-batch can be recovered by hand.
     static func tempName(for original: String) -> String {
         let head = tempPrefix + UUID().uuidString + "-"
-        var budget = CollisionDetector.maxNameBytes - head.utf8.count
         var kept = ""
         for ch in original {
-            let size = String(ch).utf8.count
-            guard size <= budget else { break }
+            guard CollisionDetector.fitsLength(head + kept + String(ch)) else { break }
             kept.append(ch)
-            budget -= size
         }
         return head + kept
     }
 
-    static func isTempName(_ name: String) -> Bool { name.hasPrefix(tempPrefix) }
+    public static func isTempName(_ name: String) -> Bool { name.hasPrefix(tempPrefix) }
 
     /// A rename must stay in the source's folder under a valid name ("dir/.." would
     /// otherwise point at the parent folder).
     static func staysInDirectory(_ move: Move) -> Bool {
         guard CollisionDetector.isValidName(move.to.lastPathComponent) else { return false }
-        return move.to.standardizedFileURL.deletingLastPathComponent().path
-            == move.from.standardizedFileURL.deletingLastPathComponent().path
+        // No standardizedFileURL: it drops "/private" only from paths that exist.
+        return move.to.deletingLastPathComponent().path == move.from.deletingLastPathComponent().path
     }
 
     /// Two-phase rename: sources -> temp, then temp -> final target.
@@ -171,15 +166,16 @@ public struct RenameExecutor {
         var trashed: [Move] = []
         var failures: [MoveFailure] = []
         var successfulRenames: [Move] = []
-        // Sources that could not be moved aside; never trash one of them.
-        var stuckSources = Set<String>()
+        // Files of this batch, never trashed: sources that could not be moved aside
+        // and files already placed at their final name.
+        var batchFiles = Set<String>()
 
         // Phase 1: move each source to a unique temp name in its own directory.
         var temps: [(temp: URL, final: URL, original: URL)] = []
         for move in moves {
             guard Self.staysInDirectory(move) else {
                 failures.append(MoveFailure(move: move, message: "Niedozwolona nazwa"))
-                stuckSources.insert(move.from.path.lowercased())
+                batchFiles.insert(CollisionDetector.pathKey(move.from))
                 continue
             }
             let temp = move.from.deletingLastPathComponent()
@@ -189,7 +185,7 @@ public struct RenameExecutor {
                 temps.append((temp: temp, final: move.to, original: move.from))
             } catch {
                 failures.append(MoveFailure(move: move, message: error.localizedDescription))
-                stuckSources.insert(move.from.path.lowercased())
+                batchFiles.insert(CollisionDetector.pathKey(move.from))
             }
         }
 
@@ -201,11 +197,10 @@ public struct RenameExecutor {
                 if fileManager.fileExists(atPath: entry.final.path, isDirectory: &isDir) {
                     // Folders are never trashed; neither are files of this batch.
                     let message: String? = isDir.boolValue ? "Istnieje folder o tej nazwie"
-                        : (!overwrite || stuckSources.contains(entry.final.path.lowercased())) ? "Cel istnieje"
+                        : (!overwrite || batchFiles.contains(CollisionDetector.pathKey(entry.final))) ? "Cel istnieje"
                         : nil
                     if let message {
-                        restore(entry, &entries)
-                        failures.append(MoveFailure(move: move, message: message))
+                        failures.append(MoveFailure(move: move, message: message + restore(entry, &entries)))
                         continue
                     }
                     var trashURL: NSURL?
@@ -217,9 +212,9 @@ public struct RenameExecutor {
                 try fileManager.moveItem(at: entry.temp, to: entry.final)
                 entries.append(UndoEntry(original: entry.original, current: entry.final))
                 successfulRenames.append(move)
+                batchFiles.insert(CollisionDetector.pathKey(entry.final))
             } catch {
-                restore(entry, &entries)
-                failures.append(MoveFailure(move: move, message: error.localizedDescription))
+                failures.append(MoveFailure(move: move, message: error.localizedDescription + restore(entry, &entries)))
             }
         }
 
@@ -231,12 +226,15 @@ public struct RenameExecutor {
     /// Reverse a phase-1 move so the file returns to its original name.
     /// Best-effort: if the reversal itself fails, the file stays at its temp
     /// name and is recorded in `entries` so a later undo can still recover it.
+    /// Returns a note naming that temp file for the failure message ("" on success).
     private func restore(_ entry: (temp: URL, final: URL, original: URL),
-                         _ entries: inout [UndoEntry]) {
+                         _ entries: inout [UndoEntry]) -> String {
         do {
             try fileManager.moveItem(at: entry.temp, to: entry.original)
+            return ""
         } catch {
             entries.append(UndoEntry(original: entry.original, current: entry.temp))
+            return " (plik pozostał pod nazwą tymczasową: \(entry.temp.lastPathComponent))"
         }
     }
 }

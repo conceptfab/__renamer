@@ -45,4 +45,19 @@ final class LockExtensionTests: XCTestCase {
                                             config: cfg(nameCase: .upper, extCase: .lower, lock: false))
         XCTAssertEqual(name, "REPORT.txt")
     }
+
+    func test_lockKeepsDotsThatComeFromTokens() throws {
+        let cases: [(file: String, template: String, expected: String)] = [
+            ("2024.05.12 urlop.jpg", "{name}_edit", "2024.05.12 urlop_edit.jpg"),
+            ("archive.tar.gz", "{name}_v2", "archive.tar_v2.gz"),
+            ("IMG_1.jpg", "{counter}. {name}", "1. IMG_1.jpg"),
+            ("2024.05.12 urlop.jpg", "{name}.{ext}", "2024.05.12 urlop.jpg"),
+            ("2024.05.12 urlop.jpg", "{name}.png", "2024.05.12 urlop.jpg"),
+        ]
+        for c in cases {
+            let name = try builder.proposedName(for: item("/h/" + c.file), index: 0,
+                                                config: cfg(template: c.template, lock: true))
+            XCTAssertEqual(name, c.expected, "\(c.file) + \(c.template)")
+        }
+    }
 }

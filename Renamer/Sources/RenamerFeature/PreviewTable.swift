@@ -15,7 +15,7 @@ struct PreviewTable: View {
     @EnvironmentObject private var session: RenameSession
 
     private var previewRows: [PreviewRow] {
-        session.displayedRows().map(PreviewRow.init)
+        session.rows.map(PreviewRow.init)
     }
 
     var body: some View {

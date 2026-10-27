@@ -43,20 +43,31 @@ public struct PlanBuilder {
     private func proposedName(for item: FileItem, index: Int, prepared: Prepared,
                               shouldStop: () -> Bool) throws -> String {
         let config = prepared.config
-        // 1. Base. When locked, work on the name part only.
+        // 1. Base. When locked, work on the name part only. The template's own extension
+        //    (a trailing {ext} or ".png" literal) is dropped; dots from {name} etc. stay.
         let base: String
         if let segments = prepared.templateSegments {
             let evaluated = try evaluator.evaluate(segments, item: item, index: index)
-            base = config.lockExtension ? NameComponents(fullName: evaluated).base : evaluated
+            let endsWithExt: Bool
+            switch segments.last {
+            case .token(let spec)?: endsWithExt = spec.name == .ext
+            case .literal(let text)?: endsWithExt = text.contains(".")
+            case nil: endsWithExt = false
+            }
+            base = config.lockExtension && endsWithExt ? NameComponents(fullName: evaluated).base : evaluated
         } else {
             base = config.lockExtension ? item.baseName : item.fullName
         }
         // 2. Find/replace. The replacement is a mini-template expanded per file
-        //    so tokens like {counter} work; regex backrefs ($1) pass through.
+        //    so tokens like {counter} work; regex backrefs ($1) pass through, while
+        //    token values are escaped so a "$1" in a file name stays literal.
         let replaced: String
         if let find = prepared.find {
-            let expandedReplacement = try evaluator.evaluate(
-                prepared.replacementSegments, item: item, index: index)
+            let expandedReplacement = try prepared.replacementSegments.map { segment in
+                let text = try evaluator.evaluate([segment], item: item, index: index)
+                guard config.find.isRegex, case .token = segment else { return text }
+                return NSRegularExpression.escapedTemplate(for: text)
+            }.joined()
             replaced = try find.apply(to: base, replacement: expandedReplacement, shouldStop: shouldStop)
         } else {
             replaced = base

@@ -60,7 +60,7 @@ public final class RenameSession: ObservableObject {
 
     private let settings: SettingsStore
     private let presetStore: PresetStore
-    private var undoBatch: UndoBatch?
+    private(set) var undoBatch: UndoBatch?
     private var debounceTask: Task<Void, Never>?
     private var bannerTask: Task<Void, Never>?
     private var addTask: Task<Void, Never>?
@@ -250,18 +250,10 @@ public final class RenameSession: ObservableObject {
         presetStore.save(presets)
     }
 
-    func requestApply() {
-        startApply(overwrite: false)
-    }
-
-    func apply(overwrite: Bool) {
-        startApply(overwrite: overwrite)
-    }
-
     /// Replans with the current settings (never a stale, debounced plan), asks before
     /// overwriting, then renames off the main actor. `isApplying` stays true throughout,
     /// which also blocks a second apply or an undo until this one finishes.
-    private func startApply(overwrite: Bool) {
+    func apply(overwrite: Bool = false) {
         guard canApply else { return }
         isApplying = true
         Task { [weak self] in
@@ -306,9 +298,11 @@ public final class RenameSession: ObservableObject {
                                            succeeded: result.successfulRenames,
                                            undo: result.undo)
                 for move in result.successfulRenames {
-                    let date = planned.first { $0.item.url == move.from }?.item.modificationDate
-                    outcome.renamed[move.from] = (try? FileItemLoader.load(move.to))
-                        ?? FileItem(url: move.to, modificationDate: date ?? Date(timeIntervalSince1970: 0))
+                    // The linear lookup runs only when the reload fails.
+                    outcome.renamed[move.from] = (try? FileItemLoader.load(move.to)) ?? FileItem(
+                        url: move.to,
+                        modificationDate: planned.first { $0.item.url == move.from }?.item.modificationDate
+                            ?? Date(timeIntervalSince1970: 0))
                 }
                 return outcome
             } catch {
@@ -326,7 +320,10 @@ public final class RenameSession: ObservableObject {
 
         // Follow renamed files to their new names; failed ones keep their old URLs.
         items = items.map { outcome.renamed[$0.url] ?? $0 }
-        undoBatch = outcome.undo.flatMap { $0.isEmpty ? nil : $0 }
+        // Files an earlier batch left under a temp name stay in undo until recovered.
+        let stranded = undoBatch?.entries.filter { RenameExecutor.isTempName($0.current.lastPathComponent) } ?? []
+        let batch = UndoBatch(entries: stranded + (outcome.undo?.entries ?? []), trashed: outcome.undo?.trashed ?? [])
+        undoBatch = batch.isEmpty ? nil : batch
         canUndo = undoBatch != nil
         let succeeded = outcome.succeeded.count
         if outcome.failures.isEmpty {
@@ -396,11 +393,6 @@ public final class RenameSession: ObservableObject {
             }
             self.rebuildPlan()
         }
-    }
-
-    /// Rows in display order (`rows` is kept sorted).
-    func displayedRows() -> [RenameRow] {
-        rows
     }
 
     private func rebuildPlan() {

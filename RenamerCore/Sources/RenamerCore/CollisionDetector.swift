@@ -1,20 +1,29 @@
 import Foundation
 
 public enum CollisionDetector {
-    /// Longest file name (in UTF-8 bytes) APFS/HFS+ accept.
-    public static let maxNameBytes = 255
+    /// Longest file name APFS accepts, in UTF-16 units of its decomposed (NFD) form.
+    public static let maxNameUnits = 255
+
+    static func fitsLength(_ name: String) -> Bool {
+        name.decomposedStringWithCanonicalMapping.utf16.count <= maxNameUnits
+    }
+
+    /// APFS compares names case-insensitively with full folding (ß = ss, Σ = σ = ς).
+    static func pathKey(_ url: URL) -> String {
+        url.path.folding(options: .caseInsensitive, locale: nil)
+    }
 
     /// "." and ".." resolve to the folder itself / its parent, so renaming onto them
     /// would target (and with overwrite, trash) a folder. Dotfiles like ".env" are fine.
     public static func isValidName(_ name: String) -> Bool {
         !name.isEmpty && name != "." && name != ".."
             && !name.contains("/") && !name.contains(":") && !name.contains("\0")
-            && name.utf8.count <= maxNameBytes
+            && fitsLength(name)
     }
 
     public static func annotate(_ rows: [RenameRow], probe: FileSystemProbe) -> [RenameRow] {
         var out = rows
-        let sourcePaths = Set(rows.map { $0.item.url.path.lowercased() })
+        let sourcePaths = Set(rows.map { pathKey($0.item.url) })
 
         // 1. Per-row name validation. Rows that already failed evaluation stay errors.
         for i in out.indices where out[i].status != .error {
@@ -30,7 +39,7 @@ public enum CollisionDetector {
         // 2. Duplicate target detection (case-insensitive, per directory).
         var groups: [String: [Int]] = [:]
         for i in out.indices where out[i].status != .error {
-            let key = out[i].targetURL.path.lowercased()
+            let key = pathKey(out[i].targetURL)
             groups[key, default: []].append(i)
         }
         for (_, indices) in groups where indices.count > 1 {
@@ -44,7 +53,7 @@ public enum CollisionDetector {
         //    An existing folder is an error: overwrite never trashes folders.
         for i in out.indices where out[i].status == .ok {
             let target = out[i].targetURL
-            if probe.exists(target), !sourcePaths.contains(target.path.lowercased()) {
+            if probe.exists(target), !sourcePaths.contains(pathKey(target)) {
                 if probe.isDirectory(target) {
                     out[i].status = .error
                     out[i].message = "Istnieje folder o tej nazwie"

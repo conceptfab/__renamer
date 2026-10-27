@@ -33,7 +33,7 @@ public struct ContentView: View {
                 }
 
                 ToolbarItem(placement: .primaryAction) {
-                    Button(action: session.requestApply) {
+                    Button { session.apply() } label: {
                         Label("Zmień nazwy", systemImage: "checkmark")
                     }
                     .labelStyle(.titleAndIcon)

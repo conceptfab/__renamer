@@ -19,10 +19,6 @@ public struct FindReplace: Equatable, Codable, Sendable {
         self.caseSensitive = caseSensitive
     }
 
-    public func apply(to input: String) throws -> String {
-        try compiled().apply(to: input, replacement: replacement)
-    }
-
     /// Compiles the search once so it can be applied to many names.
     public func compiled() throws -> Compiled {
         guard isRegex, !search.isEmpty else { return Compiled(find: self, regex: nil) }

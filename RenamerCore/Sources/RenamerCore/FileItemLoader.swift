@@ -6,8 +6,4 @@ public enum FileItemLoader {
         let date = values.contentModificationDate ?? Date(timeIntervalSince1970: 0)
         return FileItem(url: url, modificationDate: date)
     }
-
-    public static func load(_ urls: [URL]) -> [FileItem] {
-        urls.compactMap { try? load($0) }
-    }
 }

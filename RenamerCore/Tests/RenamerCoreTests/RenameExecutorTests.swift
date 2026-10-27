@@ -80,7 +80,7 @@ final class RenameExecutorTests: XCTestCase {
         let names = try FileManager.default.contentsOfDirectory(atPath: dir.path)
         XCTAssertFalse(names.contains { $0.hasPrefix(".renamer-tmp-") })
         XCTAssertTrue(result.successfulRenames.isEmpty)
-        XCTAssertTrue(result.undo.moves.isEmpty)
+        XCTAssertTrue(result.undo.entries.isEmpty)
     }
 
     func test_targetExistsWithOverwrite_trashesAndRenames() throws {

@@ -12,8 +12,7 @@ final class RenameEngineTests: XCTestCase {
         }
 
         let engine = RenameEngine()
-        let items = FileItemLoader.load([dir.appendingPathComponent("IMG_1.jpg"),
-                                         dir.appendingPathComponent("IMG_2.jpg")])
+        let items = try ["IMG_1.jpg", "IMG_2.jpg"].map { try FileItemLoader.load(dir.appendingPathComponent($0)) }
         let cfg = RenameConfig(template: "photo_{counter:01}.{ext}",
                                find: FindReplace(search: "", replacement: "", isRegex: false, caseSensitive: true),
                                nameCase: .none, extCase: .none, stripDiacritics: false)

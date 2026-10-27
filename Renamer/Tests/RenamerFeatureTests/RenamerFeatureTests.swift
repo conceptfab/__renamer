@@ -143,8 +143,24 @@ final class RenamerFeatureTests: XCTestCase {
         PresetStore(defaults: suite).save(stored)
         XCTAssertEqual(PresetStore(defaults: suite).load(), stored)
 
-        suite.set(Data("not json".utf8), forKey: "renamer.presets")
+        let unreadable = Data("not json".utf8)
+        suite.set(unreadable, forKey: "renamer.presets")
         XCTAssertEqual(PresetStore(defaults: suite).load(), [])
+        PresetStore(defaults: suite).save(stored)
+        XCTAssertEqual(PresetStore(defaults: suite).load(), stored)
+        XCTAssertEqual(suite.data(forKey: "renamer.presets.unreadable"), unreadable, "unreadable presets are backed up")
+    }
+
+    func testOneBadPresetKeepsTheOthersAfterSave() throws {
+        let suite = makeSuite()
+        let stored = [preset("A", template: "A_[C]"), preset("B", template: "B_[N]")]
+        var array = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(stored)) as? [Any])
+        array.insert(["name": "broken"], at: 1)
+        suite.set(try JSONSerialization.data(withJSONObject: array), forKey: "renamer.presets")
+
+        XCTAssertEqual(PresetStore(defaults: suite).load(), stored)
+        RenameSession(defaults: suite).saveCurrentAsPreset(name: "N")
+        XCTAssertEqual(PresetStore(defaults: suite).load().map(\.name), ["A", "B", "N"])
     }
 
     // MARK: RenameSession
@@ -242,9 +258,9 @@ final class RenamerFeatureTests: XCTestCase {
 
         session.template = "{name}_new"
         session.onConfigChanged()
-        session.requestApply()
+        session.apply()
         XCTAssertTrue(session.isApplying)
-        session.requestApply()   // double apply is ignored while the first runs
+        session.apply()   // double apply is ignored while the first runs
         let applied = await waitFor { !session.isApplying }
         XCTAssertTrue(applied)
         XCTAssertEqual(try names(in: dir), ["a_new.txt", "b_new.txt"])
@@ -266,7 +282,7 @@ final class RenamerFeatureTests: XCTestCase {
         session.add(urls: files)
         session.template = "{name}_x"
         session.onConfigChanged()
-        session.requestApply()
+        session.apply()
         let applied = await waitFor { !session.isApplying && session.canUndo }
         XCTAssertTrue(applied)
 
@@ -284,6 +300,38 @@ final class RenamerFeatureTests: XCTestCase {
         let retried = await waitFor { !session.isApplying && !session.canUndo }
         XCTAssertTrue(retried)
         XCTAssertEqual(try names(in: dir), ["a.txt", "b.txt"])
+    }
+
+    /// 1->2, 2->3 with 3.txt locked: file 2 is stranded under a temp name. The error names
+    /// it, and the next apply keeps it in undo.
+    func testStrandedTempFileIsNamedAndStaysInUndo() async throws {
+        let dir = try makeTempDir()
+        let files = try makeFiles(["1.txt", "2.txt", "3.txt"], in: dir)
+        try FileManager.default.setAttributes([.immutable: true], ofItemAtPath: files[2].path)
+        defer { try? FileManager.default.setAttributes([.immutable: false], ofItemAtPath: files[2].path) }
+
+        let session = RenameSession(defaults: makeSuite())
+        session.add(urls: Array(files[0...1]))
+        session.template = "{counter:start=2}"
+        session.onConfigChanged()
+        session.apply()
+        let asked = await waitFor { !session.isApplying && session.showOverwriteAlert }
+        XCTAssertTrue(asked)
+        session.apply(overwrite: true)
+        let failed = await waitFor { !session.isApplying && session.failureReport != nil }
+        XCTAssertTrue(failed)
+        let temp = try XCTUnwrap(try names(in: dir).first { RenameExecutor.isTempName($0) })
+        XCTAssertEqual(session.failureReport?.failures.first?.message.contains(temp), true)
+
+        session.removeAll()
+        session.failureReport = nil
+        session.add(urls: try makeFiles(["d.txt"], in: dir))
+        session.template = "{name}_x"
+        session.onConfigChanged()
+        session.apply()
+        let applied = await waitFor { !session.isApplying && session.fileURLs.first?.lastPathComponent == "d_x.txt" }
+        XCTAssertTrue(applied)
+        XCTAssertEqual(session.undoBatch?.entries.map(\.current.lastPathComponent).sorted(), [temp, "d_x.txt"].sorted())
     }
 
     /// A runaway regex is cut off by the plan's time budget, off the main actor.
